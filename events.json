@@ -1,0 +1,9 @@
+{
+  "_attention": "Page PUBLIQUE : n'écris ici que ce que tu acceptes de rendre visible par tous.",
+  "_format": "date = AAAA-MM-JJ, heure = HH:MM (ou vide pour toute la journée), lieu facultatif",
+  "evenements": [
+    { "date": "2026-11-27", "heure": "", "titre": "Exemple : journée sans réunion", "lieu": "" },
+    { "date": "2026-12-02", "heure": "18:30", "titre": "Exemple : récupérer l'iPad mini", "lieu": "Bordeaux centre" },
+    { "date": "2026-12-05", "heure": "10:00", "titre": "Exemple : sortie running", "lieu": "Quais" }
+  ]
+}
