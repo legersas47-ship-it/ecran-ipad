@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mon écran">
@@ -11,26 +11,40 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
 
-  /* Thèmes : on change juste ces 5 couleurs */
-  html { --bg: #0b0d11; --fg: #eef0f4; --mute: #7f8897; --acc: #e0a040; --line: rgba(255,255,255,0.14); }
-  html.th1 { --bg: #090f1f; --mute: #7d8db0; --acc: #6fa8dc; }
-  html.th2 { --bg: #0a120e; --mute: #7d9487; --acc: #7fc79a; }
-  html.th3 { --bg: #170d0b; --mute: #9a817a; --acc: #ff8a5c; }
-  html.th4 { --bg: #f2efe9; --fg: #1b1d22; --mute: #6d7380; --acc: #b4571f; --line: rgba(0,0,0,0.18); }
+  /* Thèmes : fonds très différents (--fond = couleur, dégradé ou motif) */
+  html { --fond: #0b0d11; --fg: #eef0f4; --mute: #7f8897; --acc: #e0a040; --line: rgba(255,255,255,0.14); --taille: auto; }
+  /* 1 Crème */
+  html.th1 { --fond: #f4ecd8; --fg: #2b2418; --mute: #8a7d63; --acc: #b4571f; --line: rgba(60,40,10,0.22); }
+  /* 2 Aurore : dégradé vert-violet */
+  html.th2 { --fond: linear-gradient(160deg, #0b3b3a 0%, #1d2a6b 55%, #4b1f6f 100%); --mute: #a9c3d6; --acc: #7ff0c4; }
+  /* 3 Coucher de soleil */
+  html.th3 { --fond: linear-gradient(180deg, #2a1a4a 0%, #8a2f5b 45%, #f0814a 100%); --mute: #f2c9b5; --acc: #ffd27a; }
+  /* 4 Papier quadrillé */
+  html.th4 { --fond: linear-gradient(rgba(60,90,140,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(60,90,140,0.18) 1px, transparent 1px), #fbf8ef; --taille: 26px 26px; --fg: #1f2a44; --mute: #6c7790; --acc: #c2410c; --line: rgba(31,42,68,0.25); }
+  /* 5 Océan */
+  html.th5 { --fond: linear-gradient(180deg, #8fd3f4 0%, #3a8dde 55%, #12356b 100%); --fg: #ffffff; --mute: #d9ecff; --acc: #fff3a8; }
+  /* 6 Menthe claire */
+  html.th6 { --fond: linear-gradient(135deg, #e6f7ee 0%, #cfeede 100%); --fg: #123524; --mute: #4f7d68; --acc: #0f8a5f; --line: rgba(18,53,36,0.22); }
+  /* 7 Rose poudré */
+  html.th7 { --fond: linear-gradient(135deg, #fde7ef 0%, #f6cfe0 100%); --fg: #4a1d33; --mute: #9a5f7a; --acc: #c0265f; --line: rgba(74,29,51,0.22); }
+  /* 8 Noir profond avec halo */
+  html.th8 { --fond: radial-gradient(circle at 20% 15%, #243056 0%, #0a0c14 60%); --mute: #8a93b8; --acc: #8fa8ff; }
 
   body {
-    background: var(--bg);
+    background: var(--fond);
+    background-size: var(--taille);
+    background-attachment: fixed;
     color: var(--fg);
     font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-user-select: none;
     user-select: none;
     -webkit-text-size-adjust: 100%;
     overflow: hidden;
-    transition: opacity 3s, background 0.6s;
+    transition: opacity 3s;
   }
   body.nuit { opacity: 0.35; }
 
-  .page { display: flex; flex-direction: column; height: 100%; padding: 22px 30px 14px; }
+  .page { display: flex; flex-direction: column; height: 100%; padding: 22px 30px 14px; padding-top: calc(22px + constant(safe-area-inset-top)); padding-top: calc(22px + env(safe-area-inset-top)); padding-bottom: calc(14px + constant(safe-area-inset-bottom)); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
 
   header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
   #heure { font-size: 64px; font-weight: 200; letter-spacing: -1px; line-height: 1; }
@@ -67,7 +81,7 @@
   .e-depart { display: inline-block; margin-top: 12px; padding: 5px 12px; border-radius: 14px; font-size: 14px; font-weight: 600; background: var(--acc); color: #17120a; }
   .e-depart.urgent { background: #ff5a4a; color: #fff; }
   .e-ensuite { margin-top: 10px; font-size: 12px; color: var(--mute); }
-  .vide { color: var(--mute); font-size: 16px; padding: 22px; }
+  .vide { color: rgba(255,255,255,0.65); font-size: 16px; padding: 22px; }
   .alerte { font-size: 11px; color: #e0a040; padding: 0 22px; }
 
   /* Barre du bas : lecteur + petits boutons */
@@ -88,6 +102,28 @@
     .carte { margin-right: 0; margin-bottom: 14px; flex: 1; }
     .carte.match { flex: 1; }
     .carte:last-child { margin-bottom: 0; }
+  }
+
+  /* iPhone et petits écrans */
+  @media (max-width: 600px) {
+    .page { padding-left: 16px; padding-right: 16px; padding-top: 14px; padding-top: calc(10px + env(safe-area-inset-top)); }
+    header { margin-bottom: 10px; }
+    #heure { font-size: 46px; }
+    #date { font-size: 15px; }
+    .carte { border-radius: 16px; margin-bottom: 10px; }
+    .corps { left: 16px; right: 16px; bottom: 14px; }
+    .etiquette { left: 16px; top: 13px; font-size: 11px; }
+    .logos { top: 14%; } .logos img { width: 60px; height: 60px; margin: 0 10px; }
+    .score { font-size: 23px; }
+    .stats { font-size: 11px; margin-top: 6px; line-height: 1.45; }
+    .e-heure { font-size: 42px; }
+    .e-jour { font-size: 14px; }
+    .e-titre { font-size: 20px; margin-top: 8px; }
+    .e-sous, .e-adresse, .e-ensuite { display: none; }
+    .e-lieu { font-size: 14px; margin-top: 8px; }
+    .e-depart { font-size: 13px; margin-top: 8px; padding: 4px 10px; }
+    .bas { height: 50px; padding-top: 6px; }
+    #piste { max-width: 160px; }
   }
 </style>
 </head>
@@ -123,7 +159,7 @@ var JOUEUR_EQUIPE = 'SA';                      // équipe de ce joueur (abrévia
 var EVENTS_URL = 'events.json';               // fichier des rendez-vous
 var MUSIQUE_URL = 'musique.json';             // liste des morceaux
 var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
-var NB_THEMES = 5;
+var NB_THEMES = 9;
 var NUIT_DEBUT = 1, NUIT_FIN = 7;             // écran assombri la nuit
 var EVEIL_MINUTES = 5;                        // un tap éclaircit l'écran pendant ce temps
 var CHANGE_MATCH_SECONDES = 40;               // alternance Spurs / Celtics
