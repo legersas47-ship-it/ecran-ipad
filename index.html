@@ -103,6 +103,8 @@
     .bloc { margin-right: 0; margin-bottom: 12px; flex: none; }
     .bloc:last-child { margin-bottom: 0; flex: 1; }
   }
+  .notif{position:fixed;right:14px;bottom:14px;background:#2a2f3a;color:#fff;border:1px solid #556;border-radius:22px;padding:10px 16px;font-size:15px;opacity:.55;-webkit-appearance:none}
+  .notif:active{opacity:1}
 </style>
 </head>
 <body>
@@ -118,6 +120,7 @@
   </div>
   <footer id="maj"></footer>
 </div>
+<button class="notif" id="notif" type="button">🔔 Me notifier</button>
 
 <script>
 /* ============ RÉGLAGES (tu peux modifier cette partie) ============ */
@@ -448,6 +451,21 @@ function rechargerChaqueNuit() {
   var d = new Date(), cible = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 4, 0, 0);
   if (cible <= d) { cible = new Date(cible.getTime() + 24 * 3600000); }
   setTimeout(function () { window.location.reload(); }, cible - d);
+}
+
+/* ---------------- Bouton : m'envoyer une notification (ntfy) ---------------- */
+var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
+var btnNotif = document.getElementById('notif');
+if (btnNotif) {
+  btnNotif.onclick = function () {
+    var x = new XMLHttpRequest();
+    btnNotif.textContent = '…';
+    x.open('POST', NTFY_URL, true);
+    x.onload = function () { btnNotif.textContent = x.status < 300 ? '✅ Envoyé' : '⚠️ Échec'; };
+    x.onerror = function () { btnNotif.textContent = '⚠️ Échec'; };
+    x.send('Message depuis l\u2019écran iPad');
+    setTimeout(function () { btnNotif.textContent = '🔔 Me notifier'; }, 3000);
+  };
 }
 
 horloge();
