@@ -10,101 +10,85 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
+
+  /* Thèmes : on change juste ces 5 couleurs */
+  html { --bg: #0b0d11; --fg: #eef0f4; --mute: #7f8897; --acc: #e0a040; --line: rgba(255,255,255,0.14); }
+  html.th1 { --bg: #090f1f; --mute: #7d8db0; --acc: #6fa8dc; }
+  html.th2 { --bg: #0a120e; --mute: #7d9487; --acc: #7fc79a; }
+  html.th3 { --bg: #170d0b; --mute: #9a817a; --acc: #ff8a5c; }
+  html.th4 { --bg: #f2efe9; --fg: #1b1d22; --mute: #6d7380; --acc: #b4571f; --line: rgba(0,0,0,0.18); }
+
   body {
-    background: #0e1116;
-    color: #e8ebf0;
+    background: var(--bg);
+    color: var(--fg);
     font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-user-select: none;
     user-select: none;
     -webkit-text-size-adjust: 100%;
     overflow: hidden;
-    transition: opacity 3s;
+    transition: opacity 3s, background 0.6s;
   }
   body.nuit { opacity: 0.35; }
 
-  .page { display: flex; flex-direction: column; height: 100%; padding: 18px 22px 10px; }
+  .page { display: flex; flex-direction: column; height: 100%; padding: 22px 30px 14px; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
-  #heure { font-size: 68px; font-weight: 200; letter-spacing: -1px; line-height: 1; }
-  #date { font-size: 22px; color: #9aa3b2; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  #heure { font-size: 64px; font-weight: 200; letter-spacing: -1px; line-height: 1; }
+  #date { font-size: 20px; color: var(--mute); font-weight: 300; }
 
   .blocs { display: flex; flex: 1; min-height: 0; }
-  .bloc {
-    flex: 1;
-    background: #171b22;
-    border-radius: 16px;
-    padding: 16px 18px;
-    margin-right: 14px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+  .carte {
+    position: relative; flex: 1; min-width: 0; border-radius: 20px; overflow: hidden;
+    background-color: #1a1f29; background-size: cover; background-position: center;
+    margin-right: 18px; color: #fff;
+    transition: opacity 0.45s;
   }
-  .bloc:last-child { margin-right: 0; }
-  h2 { font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #7d8696; margin-bottom: 12px; }
-  .alerte { font-size: 12px; color: #e0a040; margin-top: 6px; }
+  .carte:last-child { margin-right: 0; }
+  .carte.match { flex: 1.15; }
+  .voile { position: absolute; left: 0; right: 0; bottom: 0; top: 0; background: -webkit-linear-gradient(top, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.88) 100%); background: linear-gradient(to bottom, rgba(0,0,0,0.05) 25%, rgba(0,0,0,0.88) 100%); }
+  .corps { position: absolute; left: 22px; right: 22px; bottom: 20px; }
+  .etiquette { position: absolute; left: 22px; top: 18px; font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(255,255,255,0.85); text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+  .etiquette .live { background: #c62828; color: #fff; padding: 1px 6px; border-radius: 5px; margin-right: 6px; letter-spacing: 1px; }
+  .logos { position: absolute; left: 0; right: 0; top: 18%; text-align: center; }
+  .logos img { width: 86px; height: 86px; margin: 0 16px; opacity: 0.9; }
 
-  /* NBA */
-  .equipe { padding: 10px 0 12px; border-bottom: 1px solid #242a33; }
-  .equipe:last-child { border-bottom: 0; }
-  .eq-tete { display: flex; align-items: center; margin-bottom: 8px; }
-  .logo { width: 44px; height: 44px; margin-right: 12px; }
-  .eq-nom { font-size: 22px; font-weight: 600; }
-  .eq-bilan { font-size: 14px; color: #9aa3b2; margin-top: 2px; }
-  .ligne { font-size: 17px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ligne .quand { color: #7d8696; font-size: 14px; margin-left: 6px; }
-  .prochain { color: #b8c0cc; font-size: 15px; white-space: normal; }
-  .tag { display: inline-block; min-width: 24px; padding: 1px 6px; border-radius: 6px; font-size: 13px; font-weight: 700; text-align: center; margin-right: 6px; }
-  .tag.v { background: #1f6b3a; color: #c9f5d6; }
-  .tag.d { background: #6b2323; color: #f7cccc; }
-  .tag.live { background: #c62828; color: #fff; }
+  .score { font-size: 30px; font-weight: 600; line-height: 1.15; }
+  .score .tiret { font-weight: 200; margin: 0 8px; }
+  .stats { margin-top: 8px; font-size: 12px; line-height: 1.55; color: rgba(255,255,255,0.8); }
+  .credit { margin-top: 6px; font-size: 9px; color: rgba(255,255,255,0.45); }
 
-  /* Météo */
-  .meteo-now { display: flex; align-items: center; margin-bottom: 6px; }
-  .meteo-icone { font-size: 56px; margin-right: 14px; line-height: 1; }
-  .meteo-temp { font-size: 56px; font-weight: 200; line-height: 1; }
-  .meteo-desc { font-size: 18px; margin-top: 4px; }
-  .meteo-detail { font-size: 14px; color: #9aa3b2; margin-bottom: 14px; }
-  .jour { display: flex; align-items: center; padding: 8px 0; border-top: 1px solid #242a33; font-size: 17px; }
-  .jour-nom { width: 62px; color: #b8c0cc; }
-  .jour-icone { width: 38px; font-size: 22px; }
-  .jour-temp { flex: 1; }
-  .jour-temp .min { color: #7d8696; }
-  .jour-pluie { color: #6fa8dc; font-size: 14px; }
+  /* Évènement */
+  .e-heure { font-size: 60px; font-weight: 200; line-height: 1; letter-spacing: -1px; }
+  .e-jour { font-size: 16px; margin-top: 4px; color: rgba(255,255,255,0.85); text-transform: capitalize; }
+  .e-titre { font-size: 25px; font-weight: 600; line-height: 1.2; margin-top: 14px; }
+  .e-sous { font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 3px; }
+  .e-lieu { font-size: 16px; margin-top: 12px; }
+  .e-adresse { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+  .e-depart { display: inline-block; margin-top: 12px; padding: 5px 12px; border-radius: 14px; font-size: 14px; font-weight: 600; background: var(--acc); color: #17120a; }
+  .e-depart.urgent { background: #ff5a4a; color: #fff; }
+  .e-ensuite { margin-top: 10px; font-size: 12px; color: var(--mute); }
+  .vide { color: var(--mute); font-size: 16px; padding: 22px; }
+  .alerte { font-size: 11px; color: #e0a040; padding: 0 22px; }
 
-  /* Agenda */
-  .evt { padding: 9px 0; border-bottom: 1px solid #242a33; }
-  .evt:last-child { border-bottom: 0; }
-  .evt-quand { font-size: 13px; color: #7d8696; text-transform: uppercase; letter-spacing: 0.5px; }
-  .evt-quand.bientot { color: #e0a040; }
-  .evt-titre { font-size: 18px; margin-top: 2px; }
-  .evt-lieu { font-size: 14px; color: #9aa3b2; margin-top: 1px; }
-  .vide { color: #7d8696; font-size: 16px; }
-
-  /* Carte vedette (sortie avec photo) */
-  .vedette { border-radius: 12px; overflow: hidden; background: #1f2530; margin-bottom: 10px; }
-  .vedette-img { height: 120px; background-size: cover; background-position: center; position: relative; }
-  .vedette-badge { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.65); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
-  .vedette-corps { padding: 10px 12px 12px; }
-  .vedette-titre { font-size: 20px; font-weight: 600; line-height: 1.2; }
-  .vedette-sous { font-size: 14px; color: #9aa3b2; margin-top: 3px; }
-  .vedette-quand { font-size: 16px; margin-top: 8px; }
-  .vedette-depart { margin-top: 8px; font-size: 16px; font-weight: 600; color: #e0a040; }
-  .vedette-depart.urgent { color: #ff6b5a; }
-  .vedette-credit { font-size: 10px; color: #5b6372; margin-top: 6px; }
-  .evt.important { background: #2a2214; border: 1px solid #6b5420; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
-  .evt.important .evt-titre { font-size: 20px; font-weight: 600; }
-  .evt-depart { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 6px; background: #e0a040; color: #1a1407; font-size: 15px; font-weight: 700; }
-
-  footer { font-size: 11px; color: #4f5664; text-align: right; padding-top: 8px; }
+  /* Barre du bas : lecteur + petits boutons */
+  .bas { display: flex; align-items: center; justify-content: space-between; height: 54px; padding-top: 10px; }
+  .lecteur { display: flex; align-items: center; min-width: 0; }
+  .btn {
+    -webkit-appearance: none; appearance: none; background: transparent; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 50%; width: 40px; height: 40px; font-size: 14px; line-height: 38px; text-align: center; opacity: 0.7; padding: 0;
+  }
+  .btn:active { opacity: 1; }
+  .btn.off { opacity: 0.25; }
+  #piste { margin-left: 12px; font-size: 12px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+  .petits .btn { width: 34px; height: 34px; line-height: 32px; font-size: 13px; margin-left: 10px; border-color: transparent; opacity: 0.5; }
+  .point { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--acc); vertical-align: middle; }
 
   @media (orientation: portrait) {
     .blocs { flex-direction: column; }
-    .bloc { margin-right: 0; margin-bottom: 12px; flex: none; }
-    .bloc:last-child { margin-bottom: 0; flex: 1; }
+    .carte { margin-right: 0; margin-bottom: 14px; flex: 1; }
+    .carte.match { flex: 1; }
+    .carte:last-child { margin-bottom: 0; }
   }
-  .notif{position:fixed;right:14px;bottom:14px;background:#2a2f3a;color:#fff;border:1px solid #556;border-radius:22px;padding:10px 16px;font-size:15px;opacity:.55;-webkit-appearance:none}
-  .notif:active{opacity:1}
 </style>
 </head>
 <body>
@@ -114,13 +98,19 @@
     <div id="date"></div>
   </header>
   <div class="blocs">
-    <section class="bloc"><h2>NBA</h2><div id="nba"><div class="vide">Chargement…</div></div></section>
-    <section class="bloc"><h2>Météo · Bordeaux</h2><div id="meteo"><div class="vide">Chargement…</div></div></section>
-    <section class="bloc"><h2>Prochains rendez-vous</h2><div id="agenda"><div class="vide">Chargement…</div></div></section>
+    <section class="carte match" id="match"><div class="vide">Chargement…</div></section>
+    <section class="carte" id="event"><div class="vide">Chargement…</div></section>
   </div>
-  <footer id="maj"></footer>
+  <div class="bas">
+    <div class="lecteur">
+      <button class="btn off" id="play" type="button">&#9654;</button>
+      <div id="piste"></div>
+    </div>
+    <div class="petits">
+      <button class="btn" id="notif" type="button">&#128276;</button><button class="btn" id="theme" type="button"><span class="point"></span></button>
+    </div>
+  </div>
 </div>
-<button class="notif" id="notif" type="button">🔔 Me notifier</button>
 
 <script>
 /* ============ RÉGLAGES (tu peux modifier cette partie) ============ */
@@ -128,19 +118,19 @@ var EQUIPES = [            // abréviations ESPN : bos, sa, lal, gs, ny, mia...
   { code: 'bos', nom: 'Celtics' },
   { code: 'sa',  nom: 'Spurs' }
 ];
-var VILLE = { lat: 44.8378, lon: -0.5792 };   // Bordeaux
+var JOUEUR_VEDETTE = 'Wembanyama';            // toujours affiché si son équipe joue
 var EVENTS_URL = 'events.json';               // fichier des rendez-vous
-var NB_EVENEMENTS = 6;                        // nombre max affiché
+var MUSIQUE_URL = 'musique.json';             // liste des morceaux
+var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
+var NB_THEMES = 5;
 var NUIT_DEBUT = 23, NUIT_FIN = 7;            // écran assombri la nuit
-var RAFRAICHIR = {                            // en minutes
-  nba: 5, meteo: 15, agenda: 2
-};
+var CHANGE_MATCH_SECONDES = 40;               // alternance Spurs / Celtics
+var RAFRAICHIR = { nba: 5, agenda: 2 };       // en minutes
 /* ================================================================== */
 
 var JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-var majs = {};
 
 function pad(n) { return (n < 10 ? '0' : '') + n; }
 function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
@@ -154,6 +144,7 @@ function el(tag, cls, texte) {
   return e;
 }
 function vider(e) { while (e.firstChild) { e.removeChild(e.firstChild); } }
+function fond(e, url) { e.style.backgroundImage = 'url("' + url + '")'; }
 
 function getJSON(url, ok, ko) {
   var x = new XMLHttpRequest();
@@ -170,38 +161,24 @@ function getJSON(url, ok, ko) {
   x.ontimeout = function () { ko('délai dépassé'); };
   x.send();
 }
-function antiCache(u) {
-  if (u.indexOf('blob:') === 0) { return u; }
-  return u + (u.indexOf('?') < 0 ? '?' : '&') + 't=' + new Date().getTime();
-}
+function antiCache(u) { return u + (u.indexOf('?') < 0 ? '?' : '&') + 't=' + new Date().getTime(); }
 
-/* Date ISO UTC d'ESPN, ex. 2026-11-28T01:00Z */
 function lireDateUTC(s) {
   var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(s || '');
   if (!m) { return null; }
   return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)));
 }
-/* Date locale du fichier agenda, ex. 2026-11-28 + 19:00 */
 function lireDateLocale(jour, heure) {
   var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(jour || '');
   if (!d) { return null; }
   var h = /^(\d{1,2}):(\d{2})$/.exec(heure || '');
   return new Date(+d[1], +d[2] - 1, +d[3], h ? +h[1] : 0, h ? +h[2] : 0);
 }
-
-function noterMaj(nom) { majs[nom] = hhmm(new Date()); afficherMaj(); }
-function afficherMaj() {
-  var t = [];
-  if (majs.nba) { t.push('NBA ' + majs.nba); }
-  if (majs.meteo) { t.push('Météo ' + majs.meteo); }
-  if (majs.agenda) { t.push('Agenda ' + majs.agenda); }
-  document.getElementById('maj').textContent = t.length ? 'Mis à jour : ' + t.join(' · ') : '';
-}
 function alerte(id, msg) {
   var zone = document.getElementById(id);
   var a = zone.querySelector('.alerte');
   if (!a) { a = el('div', 'alerte'); zone.appendChild(a); }
-  a.textContent = '⚠ ' + msg + ' — nouvel essai bientôt';
+  a.textContent = '⚠ ' + msg;
 }
 
 /* ---------------- Horloge ---------------- */
@@ -214,162 +191,147 @@ function horloge() {
   document.body.className = nuit ? 'nuit' : '';
 }
 
-/* ---------------- NBA (données ESPN) ---------------- */
-var DIVISIONS = { Atlantic: 'Atlantique', Central: 'Centrale', Southeast: 'Sud-Est', Northwest: 'Nord-Ouest', Pacific: 'Pacifique', Southwest: 'Sud-Ouest' };
-function classementFr(s) {
-  var m = /^(\d+)\w*\s+in\s+(\w+)/.exec(s || '');
-  if (!m) { return s || ''; }
-  return (m[1] === '1' ? '1er' : m[1] + 'e') + ' ' + (DIVISIONS[m[2]] || m[2]);
-}
+/* ---------------- Match NBA : une photo + stats (données ESPN) ---------------- */
+var URL_ESPN = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/';
+var matchs = [];        // un par équipe suivie
+var courant = 0;
+
 function score(c) {
-  var s = c.score;
+  var s = c && c.score;
   if (s === undefined || s === null) { return ''; }
   if (typeof s === 'object') { return s.displayValue || String(s.value); }
   return String(s);
 }
-function adversaires(ev, abbr) {
-  var comps = ev.competitions[0].competitors, nous = null, eux = null;
-  for (var i = 0; i < comps.length; i++) {
-    if (comps[i].team && comps[i].team.abbreviation === abbr) { nous = comps[i]; } else { eux = comps[i]; }
-  }
-  return { nous: nous, eux: eux };
-}
 function etat(ev) {
   var t = ev.competitions[0].status.type;
-  if (t.state) { return t.state; }              // pre / in / post
+  if (t.state) { return t.state; }
   return t.completed ? 'post' : 'pre';
 }
+function nomEquipe(t) { return (t && (t.shortDisplayName || t.nickname || t.abbreviation)) || ''; }
+function logoEquipe(t) { return (t && (t.logo || (t.logos && t.logos[0] && t.logos[0].href))) || ''; }
+function nomCourt(n) { var i = (n || '').indexOf(' '); return i < 0 ? n : n.substring(i + 1); }
 
-function carteEquipe(eq, data) {
-  var bloc = el('div', 'equipe');
-  var team = data.team || {};
-  var abbr = team.abbreviation;
-  var tete = el('div', 'eq-tete');
-  if (team.logo) {
-    var img = el('img', 'logo');
-    img.onerror = function () { this.style.display = 'none'; };
-    img.src = team.logo; img.alt = '';
-    tete.appendChild(img);
-  }
-  var noms = el('div');
-  noms.appendChild(el('div', 'eq-nom', team.shortDisplayName || eq.nom));
-  noms.appendChild(el('div', 'eq-bilan', (team.recordSummary || '') + (team.standingSummary ? ' · ' + classementFr(team.standingSummary) : '')));
-  tete.appendChild(noms);
-  bloc.appendChild(tete);
-
-  var evs = data.events || [], dernier = null, enCours = null, prochain = null;
-  for (var i = 0; i < evs.length; i++) {
-    var e = etat(evs[i]);
-    if (e === 'post' && evs[i].competitions[0].status.type.completed) { dernier = evs[i]; }
-    else if (e === 'in' && !enCours) { enCours = evs[i]; }
-    else if (e === 'pre' && !prochain) { prochain = evs[i]; }
-  }
-
-  if (enCours) {
-    var a = adversaires(enCours, abbr), st = enCours.competitions[0].status;
-    var l = el('div', 'ligne');
-    l.appendChild(el('span', 'tag live', 'LIVE'));
-    l.appendChild(document.createTextNode(score(a.nous) + '–' + score(a.eux) + ' ' + (a.nous.homeAway === 'home' ? 'contre ' : 'à ') + a.eux.team.abbreviation));
-    l.appendChild(el('span', 'quand', st.period ? 'Q' + st.period + ' ' + (st.displayClock || '') : ''));
-    bloc.appendChild(l);
-  }
-  if (dernier) {
-    var b = adversaires(dernier, abbr);
-    var gagne = b.nous.winner === true || (+score(b.nous) > +score(b.eux));
-    var l2 = el('div', 'ligne');
-    l2.appendChild(el('span', 'tag ' + (gagne ? 'v' : 'd'), gagne ? 'V' : 'D'));
-    l2.appendChild(document.createTextNode(score(b.nous) + '–' + score(b.eux) + ' ' + (b.nous.homeAway === 'home' ? 'contre ' : 'à ') + b.eux.team.abbreviation));
-    var dd = lireDateUTC(dernier.date);
-    if (dd) { l2.appendChild(el('span', 'quand', jourCourt(dd))); }
-    bloc.appendChild(l2);
-  }
-  if (prochain) {
-    var c = adversaires(prochain, abbr), dp = lireDateUTC(prochain.date);
-    var quand = dp ? (memeJour(dp, new Date()) ? "aujourd'hui" : jourCourt(dp)) + ' · ' + hhmm(dp) : '';
-    bloc.appendChild(el('div', 'ligne prochain', 'Prochain : ' + quand + ' ' + (c.nous.homeAway === 'home' ? 'contre ' : 'à ') + c.eux.team.abbreviation));
-  }
-  if (!dernier && !prochain && !enCours) { bloc.appendChild(el('div', 'vide', 'Pas de match trouvé')); }
-  return bloc;
-}
-
-function chargerNBA() {
-  var resultats = [], restant = EQUIPES.length, erreur = false;
-  for (var i = 0; i < EQUIPES.length; i++) {
-    (function (idx) {
-      var eq = EQUIPES[idx];
-      getJSON('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/' + eq.code + '/schedule',
-        function (data) { resultats[idx] = carteEquipe(eq, data); fin(); },
-        function () { erreur = true; fin(); });
-    })(i);
-  }
-  function fin() {
-    restant--;
-    if (restant > 0) { return; }
-    var zone = document.getElementById('nba');
-    var ok = false;
-    for (var j = 0; j < resultats.length; j++) { if (resultats[j]) { ok = true; } }
-    if (ok) {
-      vider(zone);
-      for (var k = 0; k < resultats.length; k++) { if (resultats[k]) { zone.appendChild(resultats[k]); } }
-      noterMaj('nba');
+/* Lit les joueurs du boxscore ESPN */
+function lireBox(m) {
+  var res = [], ps = (m.boxscore && m.boxscore.players) || [];
+  for (var i = 0; i < ps.length; i++) {
+    var st = ps[i].statistics && ps[i].statistics[0];
+    if (!st) { continue; }
+    var L = st.labels || [], ix = { pts: L.indexOf('PTS'), reb: L.indexOf('REB'), ast: L.indexOf('AST'), blk: L.indexOf('BLK') };
+    var joueurs = [], ath = st.athletes || [];
+    for (var j = 0; j < ath.length; j++) {
+      var s = ath[j].stats || [], nom = (ath[j].athlete && ath[j].athlete.displayName) || '';
+      joueurs.push({ nom: nom, joue: s.length > 0 && !ath[j].didNotPlay,
+        pts: +s[ix.pts] || 0, reb: +s[ix.reb] || 0, ast: +s[ix.ast] || 0, blk: +s[ix.blk] || 0 });
     }
-    if (erreur) { alerte('nba', 'NBA indisponible'); }
+    res.push({ abbr: ps[i].team && ps[i].team.abbreviation, joueurs: joueurs });
   }
+  return res;
+}
+function resume(j) {
+  var t = [j.pts + ' pts'];
+  if (j.reb) { t.push(j.reb + ' reb'); }
+  if (j.ast) { t.push(j.ast + ' pds'); }
+  return t.join(' · ');
+}
+function lignesStats(box, noms, abbrNous) {
+  var lignes = [], i, j, trouve = false;
+  for (i = 0; i < box.length; i++) {
+    for (j = 0; j < box[i].joueurs.length; j++) {
+      var p = box[i].joueurs[j];
+      if (p.nom.indexOf(JOUEUR_VEDETTE) >= 0) {
+        trouve = true;
+        lignes.push(p.joue ? nomCourt(p.nom) + ' : ' + resume(p) + (p.blk ? ' · ' + p.blk + ' ctr' : '') : nomCourt(p.nom) + " : n'a pas joué");
+      }
+    }
+  }
+  var ordre = box.slice().sort(function (a, b) { return (a.abbr === abbrNous ? 0 : 1) - (b.abbr === abbrNous ? 0 : 1); });
+  for (i = 0; i < ordre.length; i++) {
+    var best = null;
+    for (j = 0; j < ordre[i].joueurs.length; j++) {
+      var q = ordre[i].joueurs[j];
+      if (q.joue && (!best || q.pts > best.pts)) { best = q; }
+    }
+    if (best) { lignes.push('Meilleur ' + (noms[ordre[i].abbr] || ordre[i].abbr) + ' : ' + nomCourt(best.nom) + ' · ' + resume(best)); }
+  }
+  return lignes;
 }
 
-/* ---------------- Météo (Open-Meteo, sans clé) ---------------- */
-function meteoCode(code, jour) {
-  if (code === 0) { return jour === false ? ['🌙', 'Ciel dégagé'] : ['☀️', 'Ensoleillé']; }
-  if (code === 1) { return jour === false ? ['🌙', 'Plutôt dégagé'] : ['🌤️', 'Plutôt ensoleillé']; }
-  if (code === 2) { return ['⛅', 'Éclaircies']; }
-  if (code === 3) { return ['☁️', 'Couvert']; }
-  if (code === 45 || code === 48) { return ['🌫️', 'Brouillard']; }
-  if (code >= 51 && code <= 57) { return ['🌦️', 'Bruine']; }
-  if (code >= 61 && code <= 67) { return ['🌧️', code >= 65 ? 'Forte pluie' : 'Pluie']; }
-  if (code >= 71 && code <= 77) { return ['❄️', 'Neige']; }
-  if (code >= 80 && code <= 82) { return ['🌦️', 'Averses']; }
-  if (code === 85 || code === 86) { return ['🌨️', 'Averses de neige']; }
-  if (code >= 95) { return ['⛈️', 'Orage']; }
-  return ['🌡️', ''];
-}
+function chargerMatch(idx) {
+  var eq = EQUIPES[idx];
+  getJSON(URL_ESPN + 'teams/' + eq.code + '/schedule', function (data) {
+    var team = data.team || {}, abbr = team.abbreviation, evs = data.events || [], cible = null, i;
+    for (i = 0; i < evs.length; i++) {
+      var e = etat(evs[i]);
+      if (e === 'in') { cible = evs[i]; break; }
+      if (e === 'post' && evs[i].competitions[0].status.type.completed) { cible = evs[i]; }
+    }
+    if (!cible) { matchs[idx] = { nom: nomEquipe(team) || eq.nom, vide: true }; afficherMatch(false); return; }
 
-function chargerMeteo() {
-  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + VILLE.lat + '&longitude=' + VILLE.lon +
-    '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
-    '&timezone=Europe%2FParis&forecast_days=4';
-  getJSON(url, function (d) {
-    var zone = document.getElementById('meteo');
+    var noms = {}, nous = null, eux = null, comps = cible.competitions[0].competitors;
+    for (i = 0; i < comps.length; i++) {
+      noms[comps[i].team.abbreviation] = nomEquipe(comps[i].team);
+      if (comps[i].team.abbreviation === abbr) { nous = comps[i]; } else { eux = comps[i]; }
+    }
+    var sn = +score(nous), se = +score(eux), live = etat(cible) === 'in', st = cible.competitions[0].status;
+    var mod = {
+      nom: nomEquipe(team) || eq.nom, nousNom: noms[abbr] || eq.nom, euxNom: nomEquipe(eux.team), sn: sn, se: se,
+      live: live, quand: live ? (st.period ? 'Q' + st.period + ' ' + (st.displayClock || '') : '') : '',
+      gagne: sn > se, date: lireDateUTC(cible.date), logos: [logoEquipe(nous.team), logoEquipe(eux.team)], img: '', credit: '', lignes: []
+    };
+    matchs[idx] = mod; afficherMatch(false);
+
+    getJSON(URL_ESPN + 'summary?event=' + cible.id, function (m) {
+      var im = m.article && m.article.images && m.article.images[0];
+      if (im && im.url) { mod.img = im.url; mod.credit = im.credit || 'ESPN'; }
+      mod.lignes = lignesStats(lireBox(m), noms, abbr);
+      afficherMatch(false);
+    }, function () {});
+  }, function () { alerte('match', 'NBA indisponible'); });
+}
+function chargerNBA() { for (var i = 0; i < EQUIPES.length; i++) { chargerMatch(i); } }
+
+function afficherMatch(avecFondu) {
+  var liste = [], k;
+  for (k = 0; k < EQUIPES.length; k++) { if (matchs[k]) { liste.push(matchs[k]); } }
+  var zone = document.getElementById('match');
+  if (!liste.length) { return; }
+  var mod = liste[courant % liste.length];
+  var dessiner = function () {
     vider(zone);
-    var c = d.current || {};
-    var info = meteoCode(c.weather_code, c.is_day === 1);
-    var now = el('div', 'meteo-now');
-    now.appendChild(el('div', 'meteo-icone', info[0]));
-    var droite = el('div');
-    droite.appendChild(el('div', 'meteo-temp', Math.round(c.temperature_2m) + '°'));
-    droite.appendChild(el('div', 'meteo-desc', info[1]));
-    now.appendChild(droite);
-    zone.appendChild(now);
-    zone.appendChild(el('div', 'meteo-detail', 'Ressenti ' + Math.round(c.apparent_temperature) + '° · Vent ' + Math.round(c.wind_speed_10m) + ' km/h'));
-
-    var j = d.daily || {}, t = j.time || [];
-    for (var i = 0; i < t.length && i < 4; i++) {
-      var dj = lireDateLocale(t[i], '');
-      var ligne = el('div', 'jour');
-      ligne.appendChild(el('div', 'jour-nom', i === 0 ? "Auj." : JOURS_COURTS[dj.getDay()]));
-      ligne.appendChild(el('div', 'jour-icone', meteoCode(j.weather_code[i], true)[0]));
-      var temp = el('div', 'jour-temp', Math.round(j.temperature_2m_max[i]) + '° ');
-      temp.appendChild(el('span', 'min', Math.round(j.temperature_2m_min[i]) + '°'));
-      ligne.appendChild(temp);
-      var p = j.precipitation_probability_max ? j.precipitation_probability_max[i] : null;
-      ligne.appendChild(el('div', 'jour-pluie', p !== null && p !== undefined ? '💧 ' + p + '%' : ''));
-      zone.appendChild(ligne);
+    zone.style.backgroundImage = 'none';
+    if (mod.vide) { zone.appendChild(el('div', 'vide', mod.nom + ' : pas de match trouvé')); zone.style.opacity = 1; return; }
+    if (mod.img) { fond(zone, mod.img); }
+    else {
+      var lg = el('div', 'logos');
+      for (var n = 0; n < mod.logos.length; n++) { if (mod.logos[n]) { var im = el('img'); im.alt = ''; im.onerror = function () { this.style.display = 'none'; }; im.src = mod.logos[n]; lg.appendChild(im); } }
+      zone.appendChild(lg);
     }
-    noterMaj('meteo');
-  }, function () { alerte('meteo', 'Météo indisponible'); });
+    zone.appendChild(el('div', 'voile'));
+    var et = el('div', 'etiquette');
+    if (mod.live) { et.appendChild(el('span', 'live', 'LIVE')); }
+    et.appendChild(document.createTextNode(mod.nom + ' · ' + (mod.live ? mod.quand : (mod.gagne ? 'victoire' : 'défaite') + (mod.date ? ' · ' + jourCourt(mod.date) : ''))));
+    zone.appendChild(et);
+    var corps = el('div', 'corps');
+    var sc = el('div', 'score');
+    sc.appendChild(document.createTextNode(mod.nousNom + ' ' + mod.sn));
+    sc.appendChild(el('span', 'tiret', '–'));
+    sc.appendChild(document.createTextNode(mod.se + ' ' + mod.euxNom));
+    corps.appendChild(sc);
+    if (mod.lignes.length) {
+      var s = el('div', 'stats');
+      for (var q = 0; q < mod.lignes.length; q++) { s.appendChild(el('div', null, mod.lignes[q])); }
+      corps.appendChild(s);
+    }
+    if (mod.img) { corps.appendChild(el('div', 'credit', 'Photo : ' + mod.credit)); }
+    zone.appendChild(corps);
+    zone.style.opacity = 1;
+  };
+  if (avecFondu) { zone.style.opacity = 0; setTimeout(dessiner, 450); } else { dessiner(); }
 }
+function matchSuivant() { courant++; afficherMatch(true); }
 
-/* ---------------- Agenda (fichier events.json) ---------------- */
+/* ---------------- Prochain évènement (fichier events.json) ---------------- */
 function chargerAgenda() {
   getJSON(antiCache(EVENTS_URL), function (d) {
     var liste = (d && d.evenements) || [], maintenant = new Date(), aVenir = [];
@@ -377,74 +339,106 @@ function chargerAgenda() {
       var e = liste[i], quand = lireDateLocale(e.date, e.heure);
       if (!quand) { continue; }
       var finJour = new Date(quand.getFullYear(), quand.getMonth(), quand.getDate(), 23, 59);
-      var limite = e.heure ? new Date(quand.getTime() + 60 * 60000) : finJour;  // visible jusqu'à 1 h après le début
+      var limite = e.heure ? new Date(quand.getTime() + 60 * 60000) : finJour;
       if (limite >= maintenant) { aVenir.push({ quand: quand, e: e }); }
     }
     aVenir.sort(function (a, b) { return a.quand - b.quand; });
-
-    var zone = document.getElementById('agenda');
+    var zone = document.getElementById('event');
     vider(zone);
-    if (!aVenir.length) { zone.appendChild(el('div', 'vide', 'Rien de prévu 🎉')); }
+    zone.style.backgroundImage = 'none';
+    zone.style.backgroundPosition = 'center';
+    if (!aVenir.length) { zone.appendChild(el('div', 'vide', 'Rien de prévu 🎉')); return; }
+
+    var it = aVenir[0], e0 = it.e, q = it.quand;
     var demain = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() + 1);
+    if (e0.image) { fond(zone, e0.image); zone.style.backgroundPosition = e0.imagePosition || 'center 25%'; }
+    zone.appendChild(el('div', 'voile'));
+    zone.appendChild(el('div', 'etiquette', e0.categorie || 'À venir'));
 
-    /* Carte vedette : premier évènement avec photo dans les 3 jours */
-    var vedette = -1;
-    for (var v = 0; v < aVenir.length; v++) {
-      if (aVenir[v].e.image && aVenir[v].quand - maintenant < 3 * 24 * 3600000) { vedette = v; break; }
+    var corps = el('div', 'corps');
+    corps.appendChild(el('div', 'e-heure', e0.heure || 'Journée'));
+    var jour = memeJour(q, maintenant) ? "Aujourd'hui" : (memeJour(q, demain) ? 'Demain' : '');
+    var pleine = JOURS[q.getDay()] + ' ' + q.getDate() + ' ' + MOIS[q.getMonth()];
+    corps.appendChild(el('div', 'e-jour', jour ? jour + ' · ' + pleine : pleine));
+    corps.appendChild(el('div', 'e-titre', e0.titre || '(sans titre)'));
+    if (e0.sousTitre) { corps.appendChild(el('div', 'e-sous', e0.sousTitre)); }
+    if (e0.lieu) {
+      corps.appendChild(el('div', 'e-lieu', '📍 ' + e0.lieu));
+      if (e0.adresse) { corps.appendChild(el('div', 'e-adresse', e0.adresse)); }
     }
-    if (vedette >= 0) { zone.appendChild(carteVedette(aVenir[vedette], maintenant, demain)); }
-
-    for (var k = 0, n = 0; k < aVenir.length && n < NB_EVENEMENTS - (vedette >= 0 ? 2 : 0); k++) {
-      if (k === vedette) { continue; }
-      n++;
-      var it = aVenir[k], q = it.quand;
-      var jour = memeJour(q, maintenant) ? "Aujourd'hui" : (memeJour(q, demain) ? 'Demain' : jourCourt(q));
-      var bloc = el('div', 'evt' + (it.e.important ? ' important' : ''));
-      bloc.appendChild(el('div', 'evt-quand' + (memeJour(q, maintenant) ? ' bientot' : ''), jour + ' · ' + (it.e.heure ? it.e.heure : 'journée')));
-      bloc.appendChild(el('div', 'evt-titre', it.e.titre || '(sans titre)'));
-      if (it.e.lieu) { bloc.appendChild(el('div', 'evt-lieu', it.e.lieu)); }
-      if (it.e.depart) {
-        var d0 = lireDateLocale(it.e.date, it.e.depart);
-        var txt = 'Partir du bureau à ' + it.e.depart;
-        if (d0 && d0 > maintenant && d0 - maintenant < 3 * 3600000) {
-          var mn = Math.round((d0 - maintenant) / 60000);
-          txt += ' (dans ' + (mn >= 60 ? Math.floor(mn / 60) + ' h ' + pad(mn % 60) : mn + ' min') + ')';
-        } else if (d0 && d0 <= maintenant && q > maintenant) {
-          txt = 'Il est temps de partir !';
-        }
-        bloc.appendChild(el('div', 'evt-depart', txt));
+    if (e0.depart) {
+      var dep = lireDateLocale(e0.date, e0.depart), txt = (e0.departTexte || 'Partir à') + ' ' + e0.depart, cls = 'e-depart';
+      if (dep) {
+        var min = Math.round((dep - maintenant) / 60000);
+        if (min <= 0 && q > maintenant) { txt = 'Pars maintenant !'; cls += ' urgent'; }
+        else if (min > 0 && min <= 90) { txt += ' · dans ' + (min >= 60 ? Math.floor(min / 60) + ' h ' + pad(min % 60) : min + ' min'); if (min <= 15) { cls += ' urgent'; } }
       }
-      zone.appendChild(bloc);
+      corps.appendChild(el('div', cls, '🚋 ' + txt));
     }
-    noterMaj('agenda');
-  }, function (err) { alerte('agenda', err === 'format' ? 'events.json mal écrit (virgule ou guillemet ?)' : 'Agenda indisponible'); });
+    if (aVenir.length > 1) {
+      var s = aVenir[1], sj = memeJour(s.quand, demain) ? 'demain' : jourCourt(s.quand);
+      corps.appendChild(el('div', 'e-ensuite', 'Ensuite : ' + sj + (s.e.heure ? ' ' + s.e.heure : '') + ' · ' + (s.e.titre || '')));
+    }
+    if (e0.credit) { corps.appendChild(el('div', 'credit', 'Photo : ' + e0.credit)); }
+    zone.appendChild(corps);
+  }, function (err) { alerte('event', err === 'format' ? 'events.json mal écrit (virgule ou guillemet ?)' : 'Agenda indisponible'); });
 }
 
-function carteVedette(it, maintenant, demain) {
-  var e = it.e, q = it.quand;
-  var carte = el('div', 'vedette');
-  var img = el('div', 'vedette-img');
-  img.style.backgroundImage = 'url("' + e.image + '")';
-  img.appendChild(el('div', 'vedette-badge', e.categorie || 'Sortie'));
-  carte.appendChild(img);
-  var corps = el('div', 'vedette-corps');
-  corps.appendChild(el('div', 'vedette-titre', e.titre || ''));
-  if (e.sousTitre) { corps.appendChild(el('div', 'vedette-sous', e.sousTitre)); }
-  var jour = memeJour(q, maintenant) ? "Aujourd'hui" : (memeJour(q, demain) ? 'Demain' : jourCourt(q));
-  corps.appendChild(el('div', 'vedette-quand', '🕗 ' + jour + ' ' + (e.heure || '') + (e.lieu ? '  ·  📍 ' + e.lieu : '')));
-  if (e.depart) {
-    var dep = lireDateLocale(e.date, e.depart), txt = '🚋 ' + (e.departTexte || 'Partir à') + ' ' + e.depart, cls = 'vedette-depart';
-    if (dep) {
-      var min = Math.round((dep - maintenant) / 60000);
-      if (min <= 0 && q > maintenant) { txt = '🚋 Pars maintenant !'; cls += ' urgent'; }
-      else if (min > 0 && min <= 90) { txt += ' — dans ' + (min >= 60 ? Math.floor(min / 60) + ' h ' + pad(min % 60) : min + ' min'); if (min <= 15) { cls += ' urgent'; } }
-    }
-    corps.appendChild(el('div', cls, txt));
-  }
-  if (e.credit) { corps.appendChild(el('div', 'vedette-credit', 'Photo : ' + e.credit)); }
-  carte.appendChild(corps);
-  return carte;
+/* ---------------- Lecteur de musique (play / pause) ---------------- */
+var pistes = [], numPiste = 0, audio = null, enLecture = false;
+var btnPlay = document.getElementById('play'), txtPiste = document.getElementById('piste');
+
+function majPlay() {
+  btnPlay.innerHTML = enLecture ? '&#10074;&#10074;' : '&#9654;';
+  var p = pistes[numPiste];
+  txtPiste.textContent = p ? (p.titre || '') + (p.credit ? ' — ' + p.credit : '') : '';
 }
+function chargerPiste() {
+  var p = pistes[numPiste];
+  if (!p) { return; }
+  audio.src = p.fichier;
+}
+function chargerMusique() {
+  getJSON(antiCache(MUSIQUE_URL), function (d) {
+    pistes = (d && d.pistes) || [];
+    if (pistes.length) { btnPlay.className = 'btn'; audio = new Audio(); audio.onended = suivantePiste; audio.onerror = function () { setTimeout(suivantePiste, 1500); }; chargerPiste(); majPlay(); }
+    else { txtPiste.textContent = ''; }
+  }, function () {});
+}
+function suivantePiste() {
+  numPiste = (numPiste + 1) % pistes.length;
+  chargerPiste();
+  if (enLecture) { audio.play(); }
+  majPlay();
+}
+btnPlay.onclick = function () {
+  if (!audio) { return; }
+  if (enLecture) { audio.pause(); enLecture = false; }
+  else { audio.play(); enLecture = true; }
+  majPlay();
+};
+
+/* ---------------- Thèmes de couleur (appuyer plusieurs fois) ---------------- */
+var numTheme = 0;
+try { numTheme = parseInt(localStorage.getItem('theme'), 10) || 0; } catch (e1) {}
+function appliquerTheme() {
+  document.documentElement.className = numTheme ? 'th' + numTheme : '';
+  try { localStorage.setItem('theme', String(numTheme)); } catch (e2) {}
+}
+document.getElementById('theme').onclick = function () { numTheme = (numTheme + 1) % NB_THEMES; appliquerTheme(); };
+appliquerTheme();
+
+/* ---------------- Bouton : m'envoyer une notification (ntfy) ---------------- */
+var btnNotif = document.getElementById('notif');
+btnNotif.onclick = function () {
+  var x = new XMLHttpRequest();
+  btnNotif.innerHTML = '…';
+  x.open('POST', NTFY_URL, true);
+  x.onload = function () { btnNotif.innerHTML = x.status < 300 ? '&#10003;' : '!'; };
+  x.onerror = function () { btnNotif.innerHTML = '!'; };
+  x.send('Message depuis l’écran iPad');
+  setTimeout(function () { btnNotif.innerHTML = '&#128276;'; }, 2500);
+};
 
 /* ---------------- Démarrage et rafraîchissements ---------------- */
 function rechargerChaqueNuit() {
@@ -453,29 +447,15 @@ function rechargerChaqueNuit() {
   setTimeout(function () { window.location.reload(); }, cible - d);
 }
 
-/* ---------------- Bouton : m'envoyer une notification (ntfy) ---------------- */
-var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
-var btnNotif = document.getElementById('notif');
-if (btnNotif) {
-  btnNotif.onclick = function () {
-    var x = new XMLHttpRequest();
-    btnNotif.textContent = '…';
-    x.open('POST', NTFY_URL, true);
-    x.onload = function () { btnNotif.textContent = x.status < 300 ? '✅ Envoyé' : '⚠️ Échec'; };
-    x.onerror = function () { btnNotif.textContent = '⚠️ Échec'; };
-    x.send('Message depuis l\u2019écran iPad');
-    setTimeout(function () { btnNotif.textContent = '🔔 Me notifier'; }, 3000);
-  };
-}
-
+document.getElementById('match').onclick = matchSuivant;
 horloge();
 chargerNBA();
-chargerMeteo();
 chargerAgenda();
+chargerMusique();
 setInterval(horloge, 10000);
 setInterval(chargerNBA, RAFRAICHIR.nba * 60000);
-setInterval(chargerMeteo, RAFRAICHIR.meteo * 60000);
 setInterval(chargerAgenda, RAFRAICHIR.agenda * 60000);
+setInterval(matchSuivant, CHANGE_MATCH_SECONDES * 1000);
 rechargerChaqueNuit();
 </script>
 </body>
