@@ -124,7 +124,8 @@ var EVENTS_URL = 'events.json';               // fichier des rendez-vous
 var MUSIQUE_URL = 'musique.json';             // liste des morceaux
 var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
 var NB_THEMES = 5;
-var NUIT_DEBUT = 23, NUIT_FIN = 7;            // écran assombri la nuit
+var NUIT_DEBUT = 1, NUIT_FIN = 7;             // écran assombri la nuit
+var EVEIL_MINUTES = 5;                        // un tap éclaircit l'écran pendant ce temps
 var CHANGE_MATCH_SECONDES = 40;               // alternance Spurs / Celtics
 var RAFRAICHIR = { nba: 5, agenda: 2 };       // en minutes
 /* ================================================================== */
@@ -183,13 +184,15 @@ function alerte(id, msg) {
 }
 
 /* ---------------- Horloge ---------------- */
+var eveilJusqua = 0;
+function reveiller() { eveilJusqua = new Date().getTime() + EVEIL_MINUTES * 60000; horloge(); }
 function horloge() {
   var d = new Date();
   document.getElementById('heure').textContent = hhmm(d);
   document.getElementById('date').textContent = JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()];
   var h = d.getHours();
   var nuit = NUIT_DEBUT > NUIT_FIN ? (h >= NUIT_DEBUT || h < NUIT_FIN) : (h >= NUIT_DEBUT && h < NUIT_FIN);
-  document.body.className = nuit ? 'nuit' : '';
+  document.body.className = (nuit && new Date().getTime() > eveilJusqua) ? 'nuit' : '';
 }
 
 /* ---------------- Match NBA : une photo + stats (données ESPN) ---------------- */
@@ -451,6 +454,8 @@ function rechargerChaqueNuit() {
 }
 
 document.getElementById('match').onclick = matchSuivant;
+document.addEventListener('touchstart', reveiller, false);
+document.addEventListener('click', reveiller, false);
 horloge();
 chargerNBA();
 chargerAgenda();
