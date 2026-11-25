@@ -1,4 +1,10 @@
 {
- "_format": "pistes : liste de morceaux LIBRES DE DROITS (page publique). fichier = chemin dans le dossier musique/",
- "pistes": []
+ "_format": "pistes : morceaux LIBRES DE DROITS ou de Simon (page publique). fichier = chemin dans le dossier musique/",
+ "pistes": [
+  {
+   "titre": "Prjct",
+   "credit": "Simon / Joe",
+   "fichier": "musique/prjct.mp3"
+  }
+ ]
 }
