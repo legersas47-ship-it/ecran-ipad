@@ -81,6 +81,21 @@
   .evt-lieu { font-size: 14px; color: #9aa3b2; margin-top: 1px; }
   .vide { color: #7d8696; font-size: 16px; }
 
+  /* Carte vedette (sortie avec photo) */
+  .vedette { border-radius: 12px; overflow: hidden; background: #1f2530; margin-bottom: 10px; }
+  .vedette-img { height: 120px; background-size: cover; background-position: center; position: relative; }
+  .vedette-badge { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,0.65); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+  .vedette-corps { padding: 10px 12px 12px; }
+  .vedette-titre { font-size: 20px; font-weight: 600; line-height: 1.2; }
+  .vedette-sous { font-size: 14px; color: #9aa3b2; margin-top: 3px; }
+  .vedette-quand { font-size: 16px; margin-top: 8px; }
+  .vedette-depart { margin-top: 8px; font-size: 16px; font-weight: 600; color: #e0a040; }
+  .vedette-depart.urgent { color: #ff6b5a; }
+  .vedette-credit { font-size: 10px; color: #5b6372; margin-top: 6px; }
+  .evt.important { background: #2a2214; border: 1px solid #6b5420; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+  .evt.important .evt-titre { font-size: 20px; font-weight: 600; }
+  .evt-depart { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 6px; background: #e0a040; color: #1a1407; font-size: 15px; font-weight: 700; }
+
   footer { font-size: 11px; color: #4f5664; text-align: right; padding-top: 8px; }
 
   @media (orientation: portrait) {
@@ -368,17 +383,64 @@ function chargerAgenda() {
     vider(zone);
     if (!aVenir.length) { zone.appendChild(el('div', 'vide', 'Rien de prévu 🎉')); }
     var demain = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() + 1);
-    for (var k = 0; k < aVenir.length && k < NB_EVENEMENTS; k++) {
+
+    /* Carte vedette : premier évènement avec photo dans les 3 jours */
+    var vedette = -1;
+    for (var v = 0; v < aVenir.length; v++) {
+      if (aVenir[v].e.image && aVenir[v].quand - maintenant < 3 * 24 * 3600000) { vedette = v; break; }
+    }
+    if (vedette >= 0) { zone.appendChild(carteVedette(aVenir[vedette], maintenant, demain)); }
+
+    for (var k = 0, n = 0; k < aVenir.length && n < NB_EVENEMENTS - (vedette >= 0 ? 2 : 0); k++) {
+      if (k === vedette) { continue; }
+      n++;
       var it = aVenir[k], q = it.quand;
       var jour = memeJour(q, maintenant) ? "Aujourd'hui" : (memeJour(q, demain) ? 'Demain' : jourCourt(q));
-      var bloc = el('div', 'evt');
+      var bloc = el('div', 'evt' + (it.e.important ? ' important' : ''));
       bloc.appendChild(el('div', 'evt-quand' + (memeJour(q, maintenant) ? ' bientot' : ''), jour + ' · ' + (it.e.heure ? it.e.heure : 'journée')));
       bloc.appendChild(el('div', 'evt-titre', it.e.titre || '(sans titre)'));
       if (it.e.lieu) { bloc.appendChild(el('div', 'evt-lieu', it.e.lieu)); }
+      if (it.e.depart) {
+        var d0 = lireDateLocale(it.e.date, it.e.depart);
+        var txt = 'Partir du bureau à ' + it.e.depart;
+        if (d0 && d0 > maintenant && d0 - maintenant < 3 * 3600000) {
+          var mn = Math.round((d0 - maintenant) / 60000);
+          txt += ' (dans ' + (mn >= 60 ? Math.floor(mn / 60) + ' h ' + pad(mn % 60) : mn + ' min') + ')';
+        } else if (d0 && d0 <= maintenant && q > maintenant) {
+          txt = 'Il est temps de partir !';
+        }
+        bloc.appendChild(el('div', 'evt-depart', txt));
+      }
       zone.appendChild(bloc);
     }
     noterMaj('agenda');
   }, function (err) { alerte('agenda', err === 'format' ? 'events.json mal écrit (virgule ou guillemet ?)' : 'Agenda indisponible'); });
+}
+
+function carteVedette(it, maintenant, demain) {
+  var e = it.e, q = it.quand;
+  var carte = el('div', 'vedette');
+  var img = el('div', 'vedette-img');
+  img.style.backgroundImage = 'url("' + e.image + '")';
+  img.appendChild(el('div', 'vedette-badge', e.categorie || 'Sortie'));
+  carte.appendChild(img);
+  var corps = el('div', 'vedette-corps');
+  corps.appendChild(el('div', 'vedette-titre', e.titre || ''));
+  if (e.sousTitre) { corps.appendChild(el('div', 'vedette-sous', e.sousTitre)); }
+  var jour = memeJour(q, maintenant) ? "Aujourd'hui" : (memeJour(q, demain) ? 'Demain' : jourCourt(q));
+  corps.appendChild(el('div', 'vedette-quand', '🕗 ' + jour + ' ' + (e.heure || '') + (e.lieu ? '  ·  📍 ' + e.lieu : '')));
+  if (e.depart) {
+    var dep = lireDateLocale(e.date, e.depart), txt = '🚋 ' + (e.departTexte || 'Partir à') + ' ' + e.depart, cls = 'vedette-depart';
+    if (dep) {
+      var min = Math.round((dep - maintenant) / 60000);
+      if (min <= 0 && q > maintenant) { txt = '🚋 Pars maintenant !'; cls += ' urgent'; }
+      else if (min > 0 && min <= 90) { txt += ' — dans ' + (min >= 60 ? Math.floor(min / 60) + ' h ' + pad(min % 60) : min + ' min'); if (min <= 15) { cls += ' urgent'; } }
+    }
+    corps.appendChild(el('div', cls, txt));
+  }
+  if (e.credit) { corps.appendChild(el('div', 'vedette-credit', 'Photo : ' + e.credit)); }
+  carte.appendChild(corps);
+  return carte;
 }
 
 /* ---------------- Démarrage et rafraîchissements ---------------- */
