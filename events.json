@@ -11,7 +11,7 @@
       "categorie": "Ciné",
       "depart": "19:00",
       "departTexte": "Partir du bureau à",
-      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Bordeaux_-_Cin%C3%A9ma_Utopia_-_Salle_du_haut.jpg/800px-Bordeaux_-_Cin%C3%A9ma_Utopia_-_Salle_du_haut.jpg",
+      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Bordeaux_-_Cin%C3%A9ma_Utopia_-_Salle_du_haut.jpg/500px-Bordeaux_-_Cin%C3%A9ma_Utopia_-_Salle_du_haut.jpg",
       "credit": "Romainbehar, Wikimedia Commons (CC0)"
     },
     { "date": "2026-12-02", "heure": "18:30", "titre": "Exemple : récupérer l'iPad mini", "lieu": "Bordeaux centre" },
