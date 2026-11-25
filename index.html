@@ -118,7 +118,8 @@ var EQUIPES = [            // abréviations ESPN : bos, sa, lal, gs, ny, mia...
   { code: 'bos', nom: 'Celtics' },
   { code: 'sa',  nom: 'Spurs' }
 ];
-var JOUEUR_VEDETTE = 'Wembanyama';            // toujours affiché si son équipe joue
+var JOUEUR_VEDETTE = 'Wembanyama';
+var JOUEUR_EQUIPE = 'SA';                      // équipe de ce joueur (abréviation ESPN)            // toujours affiché si son équipe joue
 var EVENTS_URL = 'events.json';               // fichier des rendez-vous
 var MUSIQUE_URL = 'musique.json';             // liste des morceaux
 var NTFY_URL = 'https://ntfy.sh/ecran-simon-21ff5db4fc00163d';
@@ -235,7 +236,7 @@ function resume(j) {
   return t.join(' · ');
 }
 function lignesStats(box, noms, abbrNous) {
-  var lignes = [], i, j, trouve = false;
+  var lignes = [], i, j, trouve = false, equipeJoue = false;
   for (i = 0; i < box.length; i++) {
     for (j = 0; j < box[i].joueurs.length; j++) {
       var p = box[i].joueurs[j];
@@ -245,6 +246,8 @@ function lignesStats(box, noms, abbrNous) {
       }
     }
   }
+  for (i = 0; i < box.length; i++) { if (box[i].abbr === JOUEUR_EQUIPE) { equipeJoue = true; } }
+  if (!trouve && equipeJoue) { lignes.push(JOUEUR_VEDETTE + " : absent du match"); }
   var ordre = box.slice().sort(function (a, b) { return (a.abbr === abbrNous ? 0 : 1) - (b.abbr === abbrNous ? 0 : 1); });
   for (i = 0; i < ordre.length; i++) {
     var best = null;
@@ -266,7 +269,7 @@ function chargerMatch(idx) {
       if (e === 'in') { cible = evs[i]; break; }
       if (e === 'post' && evs[i].competitions[0].status.type.completed) { cible = evs[i]; }
     }
-    if (!cible) { matchs[idx] = { nom: nomEquipe(team) || eq.nom, vide: true }; afficherMatch(false); return; }
+    if (!cible) { matchs[idx] = { nom: eq.nom, vide: true }; afficherMatch(false); return; }
 
     var noms = {}, nous = null, eux = null, comps = cible.competitions[0].competitors;
     for (i = 0; i < comps.length; i++) {
@@ -275,7 +278,7 @@ function chargerMatch(idx) {
     }
     var sn = +score(nous), se = +score(eux), live = etat(cible) === 'in', st = cible.competitions[0].status;
     var mod = {
-      nom: nomEquipe(team) || eq.nom, nousNom: noms[abbr] || eq.nom, euxNom: nomEquipe(eux.team), sn: sn, se: se,
+      nom: eq.nom, nousNom: eq.nom, euxNom: nomEquipe(eux.team), sn: sn, se: se,
       live: live, quand: live ? (st.period ? 'Q' + st.period + ' ' + (st.displayClock || '') : '') : '',
       gagne: sn > se, date: lireDateUTC(cible.date), logos: [logoEquipe(nous.team), logoEquipe(eux.team)], img: '', credit: '', lignes: []
     };
