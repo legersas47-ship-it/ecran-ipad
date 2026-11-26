@@ -187,20 +187,9 @@
    "niveau": 1,
    "sol": "bois",
    "ouvertures": []
-  },
-  {
-   "id": "palier",
-   "nom": "Palier",
-   "x0": 72,
-   "y0": 60,
-   "x1": 132,
-   "y1": 70,
-   "niveau": 1,
-   "sol": "gris",
-   "ouvertures": []
   }
  ],
- "rev": 5,
+ "rev": 6,
  "notes": [
   {
    "t": "trait",
@@ -5880,27 +5869,13 @@
    "type": "tapis",
    "nom": "paillasson",
    "x0": 78,
-   "y0": 61,
+   "y0": 55,
    "x1": 85,
-   "y1": 64,
+   "y1": 58,
    "couleur": [
     110,
     80,
     50
-   ]
-  },
-  {
-   "type": "rambarde",
-   "nom": "rambarde extérieure",
-   "pts": [
-    [
-     73,
-     68
-    ],
-    [
-     131,
-     68
-    ]
    ]
   },
   {

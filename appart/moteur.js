@@ -130,13 +130,11 @@ var RENDUS = {
     B(0, 3, 0, W - 1, D - 1, 4, function (u, v, z) { if ((u === 0 || u === W - 1) && v === D - 1) { return null; } return varie(BRUN, u, v, z, 2); }, true);
     B(0, 3, 5, 1, D - 1, 7, function (u, v, z) { return varie(BRUN, u, v, z, 2); }, true);
     B(W - 2, 3, 5, W - 1, D - 1, 7, function (u, v, z) { return varie(BRUN, u, v, z, 2); }, true);
-    B(3, 3, 5, 8, 6, 5, function (u, v) { return hs(u, v, 6) % 4 ? [120, 118, 116] : null; });
     A.acte('canape', m, D + 3, { pose: 'sit', sx: m, sy: 4, sz: 6, regarde: c.face });
   },
   meridienne: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, B = A.B;
     B(0, 0, 0, W - 1, D - 1, 4, function (u, v, z) { if ((u === 0 || u === W - 1) && (v === D - 1)) { return null; } return varie(BRUN, u, v, z, 2); }, true);
-    B(1, 2, 5, W - 2, D - 3, 5, function (u, v) { return hs(u, v, 4) % 3 ? [158, 152, 146] : null; });
   },
   table_basse: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, B = A.B;
@@ -382,7 +380,7 @@ function construire(plan) {
     for (y = p.y0; y <= p.y1; y++) { if (dedans(p.x0, y)) { mur[I(p.x0, y)] = 1; } if (dedans(p.x1, y)) { mur[I(p.x1, y)] = 1; } }
   }
   // 3. ouvertures (portes, fenetres)
-  var fenetre = new Uint8Array(N), porte = new Uint8Array(N);
+  var fenetre = new Uint8Array(N), porte = new Uint8Array(N), porteExt = new Uint8Array(N);
   function cellulesCote(p, cote, debut, long, fn) {
     var k2;
     for (k2 = debut; k2 < debut + long; k2++) {
@@ -417,7 +415,9 @@ function construire(plan) {
   for (i = 0; i < N; i++) {
     if (mur[i] && porte[i]) {
       x = i % SX; y = (i - x) / SX;
-      var lv = solVoisin(x, y, 'max');
+      var lv = solVoisin(x, y, 'max'), nint = 0, vv0 = [[1, 0], [-1, 0], [0, 1], [0, -1]], q0;
+      for (q0 = 0; q0 < 4; q0++) { if (dedans(x + vv0[q0][0], y + vv0[q0][1]) && piece[I(x + vv0[q0][0], y + vv0[q0][1])] >= 0) { nint++; } }
+      if (nint < 2) { porteExt[i] = 1; continue; }      // porte vers l'exterieur : on dessine une vraie porte fermee
       if (lv > 0) { mur[i] = 0; fl[i] = lv; piece[i] = -2; }
     }
   }
@@ -572,17 +572,24 @@ function construire(plan) {
   }
   function decoMur() { return null; }
   // ce qu'on voit par la fenetre : 0 = ciel, 1-3 = feuillage (ombre a clair), 4 = tronc
+  // vue par la fenetre : 0 = ciel ; sinon espece * 8 + partie (1-3 feuillage sombre a clair, 4 tronc, 5 tronc blanc)
+  // especes : 0 feuillu rond (platane), 1 conifere, 2 bouleau, 3 magnolia (persistant), 4 haie
   function vegetal(x, y, zr) {
     var a = (x === 0 || (dedans(x - 1, y) && mur[I(x - 1, y)] === 0 && dedans(x + 1, y) && mur[I(x + 1, y)] === 0)) ? y : x;
-    var top = 18 + 4 * Math.sin(a * 0.31) + 2.5 * Math.sin(a * 0.83 + 1.7) + (hs(a >> 2, 3, 9) % 3);
-    var h = hs(a, zr, 17);
-    if (zr <= top) {
-      if (a % 13 === 6 && zr <= 12 && zr > 8) { return 4; }
-      if (zr > top - 1.5) { return h % 3 ? 3 : 2; }
-      if (zr > top - 5) { return h % 4 === 0 ? 3 : 2; }
-      return h % 5 === 0 ? 2 : 1;
+    var dec = hs(x > y ? x : y, 5, 3) % 7, seg = Math.floor((a + dec) / 11), cen = seg * 11 + 5.5 - dec, dx = a - cen;
+    var esp = hs(seg, 77, 1) % 4, h = hs(a, zr, 17), k, r2;
+    if (zr <= 9 + (hs(a, 2, 2) % 2)) { return 4 * 8 + (h % 3 === 0 ? 2 : 1); }
+    if (esp === 1) {
+      var hw = (25 - zr) * 0.42;
+      if (Math.abs(dx) <= hw) { return 8 + ((zr % 3 === 0) ? 1 : (dx < 0 ? 2 : 3)); }
+      if (Math.abs(dx) < 0.6 && zr <= 11) { return 8 + 4; }
+      return 0;
     }
-    if (zr <= top + 1.5 && h % 3 === 0) { return 2; }
+    var zc = esp === 2 ? 19 : (esp === 3 ? 15 : 17), rx = esp === 2 ? 3.6 : (esp === 3 ? 6.5 : 5.4 + hs(seg, 1, 9) % 2), ry = esp === 2 ? 4.5 : 5;
+    r2 = (dx * dx) / (rx * rx) + ((zr - zc) * (zr - zc)) / (ry * ry);
+    if (r2 <= 1) { k = zr > zc + 1 ? 3 : (zr > zc - 2 ? 2 : 1); if (h % 5 === 0) { k = Math.max(1, k - 1); } return esp * 8 + k; }
+    if (Math.abs(dx) < 0.6 && zr <= zc) { return esp * 8 + (esp === 2 ? 5 : 4); }
+    if (r2 <= 1.25 && h % 3 === 0) { return esp * 8 + 2; }
     return 0;
   }
   function niveauFenetre(x, y) {
@@ -603,6 +610,11 @@ function construire(plan) {
         else if (zr >= 8 && zr <= 25) {
           if (!deb || !fin || zr === 8 || zr === 25 || zr === 14 || zr === 20) { c2 = [236, 233, 226]; } else { c2 = [0, 0, 0, 2, vegetal(x, y, zr)]; }
         }
+      }
+      if (porteExt[i]) {
+        var zp = zz2 - nf, bordP = !porteExt[i - 1] || !porteExt[i + 1] || (i - SX >= 0 && !porteExt[i - SX] && !porteExt[i + SX]);
+        var cotes = (porteExt[i - 1] || porteExt[i + 1]) ? (!porteExt[i - 1] || !porteExt[i + 1]) : ((i - SX < 0 || !porteExt[i - SX]) || (i + SX >= N || !porteExt[i + SX]));
+        if (zp >= 0 && zp <= 20) { c2 = (zp === 20 || cotes) ? [120, 84, 54] : (zp === 10 && hs(x, y, 1) % 3 === 0 ? [200, 170, 80] : [150, 104, 64]); }
       }
       if (!c2 && grand) { c2 = decoMur(x, y, zz2); }
       add(x, y, zz2, c2 || (grand || top > nf ? varie(WALL, x, y, zz2, 1) : varie(CURB, x, y, zz2, 1)), 4, zz2 === top ? CAP : null);
