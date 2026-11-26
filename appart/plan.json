@@ -189,7 +189,7 @@
    "ouvertures": []
   }
  ],
- "rev": 6,
+ "rev": 7,
  "notes": [
   {
    "t": "trait",
@@ -5970,6 +5970,46 @@
     130,
     60
    ]
+  },
+  {
+   "type": "lampadaire",
+   "nom": "lampadaire (entrée)",
+   "x0": 74,
+   "y0": 55,
+   "x1": 77,
+   "y1": 57
+  },
+  {
+   "type": "valises",
+   "nom": "valises du coloc",
+   "x0": 43,
+   "y0": 15,
+   "x1": 53,
+   "y1": 23
+  },
+  {
+   "type": "valises",
+   "nom": "valises du coloc",
+   "x0": 43,
+   "y0": 26,
+   "x1": 52,
+   "y1": 36
+  },
+  {
+   "type": "valises",
+   "nom": "valises du coloc",
+   "x0": 66,
+   "y0": 38,
+   "x1": 71,
+   "y1": 46
+  },
+  {
+   "type": "vetements",
+   "nom": "valise ouverte, affaires en vrac",
+   "x0": 44,
+   "y0": 40,
+   "x1": 50,
+   "y1": 43
   }
  ],
  "vue": 180

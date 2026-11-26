@@ -428,15 +428,20 @@ function tick() {
   var jl, L;
   if (h > SO.lever + 0.8 && h < SO.coucher - 0.6) { for (jl = 0; jl < M.jours.length; jl++) { L = M.jours[jl]; lueur(L.x, L.y, L.z, 60, '255,236,190', (meteo.pluie || meteo.nuages > 0.8) ? 0.06 : 0.14); } }
   var fli = 0.95 + Math.random() * 0.05;
+  var cuisineActive = quelquUn(function (Q) { return Q.act === 'cuisine'; });
+  // certains soirs, la lumiere de la cuisine reste allumee (variable selon le jour)
+  var cuisineLaissee = lampes && ((SO.jourAn * 7 + 3) % 10) < 5 && (h >= SO.coucher - 0.4 || h < 1);
+  var cuisineAllumee = lampes && (cuisineActive || cuisineLaissee);
   for (jl = 0; jl < M.lumieres.length; jl++) {
     L = M.lumieres[jl];
     if (L.type === 'tv') { if (tvOn) { lueur(L.x, L.y, L.z, 46, '110,150,255', 0.16 + Math.random() * 0.08); } continue; }
     if (!lampes) { continue; }
-    if (L.type === 'lampadaire') { lueur(L.x, L.y, L.z, 60, '255,190,110', 0.34 * fli); }
-    else if (L.type === 'lampe_orange') { lueur(L.x, L.y, L.z, 46, '255,140,60', 0.36 * fli); }
-    else if (L.type === 'lampe') { lueur(L.x, L.y, L.z, 34, '255,210,140', 0.26 * fli); }
-    else if (L.type === 'bougie') { lueur(L.x, L.y, L.z, 10 + Math.random() * 3, '255,170,80', 0.5); }
-    else if (L.type === 'cuisine' && quelquUn(function (Q) { return Q.act === 'cuisine'; })) { lueur(L.x, L.y, L.z, 60, '255,230,170', 0.3); }
+    if (L.type === 'lampadaire') { lueur(L.x, L.y, L.z, 62, '255,184,100', 0.46 * fli); lueur(L.x, L.y, L.z - 14, 38, '255,200,130', 0.2 * fli); }
+    else if (L.type === 'lampe_orange') { lueur(L.x, L.y, L.z, 58, '255,140,60', 0.44 * fli); }
+    else if (L.type === 'lampe') { lueur(L.x, L.y, L.z, 38, '255,210,140', 0.3 * fli); }
+    else if (L.type === 'ambiance') { lueur(L.x, L.y, L.z, 80, '255,166,84', 0.2 * fli); }
+    else if (L.type === 'bougie') { lueur(L.x, L.y, L.z, 12 + Math.random() * 3, '255,170,80', 0.55); }
+    else if (L.type === 'cuisine' && cuisineAllumee) { lueur(L.x, L.y, L.z, 58, '255,200,120', cuisineActive ? 0.24 : 0.2); lueur(L.x, L.y, L.z - 10, 30, '255,225,170', 0.14); }
   }
   cx.globalCompositeOperation = 'source-over';
   camera();

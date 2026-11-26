@@ -141,6 +141,9 @@ var RENDUS = {
     B(0, 0, 4, W - 1, D - 1, 4, [74, 44, 32], true);
     B(0, 0, 0, 0, 0, 3, [64, 38, 28]); B(W - 1, 0, 0, W - 1, 0, 3, [64, 38, 28]); B(0, D - 1, 0, 0, D - 1, 3, [64, 38, 28]); B(W - 1, D - 1, 0, W - 1, D - 1, 3, [64, 38, 28]);
     B(1, 1, 5, 1, 1, 7, [40, 110, 60]); B(3, 2, 5, 3, 2, 8, [40, 110, 60]); B(W - 3, D - 3, 5, W - 2, D - 2, 6, [170, 190, 182]);
+    B(Math.floor(W / 2), Math.floor(D / 2), 5, Math.floor(W / 2), Math.floor(D / 2), 6, [236, 226, 196]);
+    A.lumiere('ambiance', Math.floor(W / 2), Math.floor(D / 2), 8);
+    A.lumiere('bougie', Math.floor(W / 2), Math.floor(D / 2), 7);
   },
   table: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
@@ -186,7 +189,7 @@ var RENDUS = {
       if (u % 3 === 0) { B(u, 0, 13, u, 0, 13, [232, 182, 40]); }
     }
     B(m - 6, 0, 12, m - 3, 0, 16, function (u2, v, z) { return (u2 === m - 6 || u2 === m - 3 || z === 12 || z === 16) ? [205, 42, 46] : [242, 206, 64]; });
-    A.lumiere('cuisine', m, 3, 22);
+    A.lumiere('cuisine', m, 3, 22); A.lumiere('cuisine', 3, 3, 22); A.lumiere('cuisine', W - 4, 3, 22);
     A.vapeur(W - 6, 3, 11);
     A.acte('cuisine', W - 6, d + 3, { pose: 'stand', regarde: INVERSE[c.face] });
   },
@@ -238,6 +241,25 @@ var RENDUS = {
   vetements: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, B = A.B;
     B(0, 0, 0, W - 1, D - 1, 2, function (u, v, z) { var h = hs(u, v, z); if (z === 2 && h % 2) { return null; } return [[40, 40, 46], [90, 110, 140], [200, 200, 196], [150, 60, 60]][h % 4]; });
+  },
+  valises: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B, K = [[40, 78, 130], [170, 50, 48], [70, 74, 80], [196, 150, 60], [46, 110, 92]], n = 0;
+    function V(u0, v0, z0, u1, v1, z1, col, sang) {
+      var dk = [col[0] * 0.55, col[1] * 0.55, col[2] * 0.55], mu = Math.floor((u0 + u1) / 2);
+      B(u0, v0, z0, u1, v1, z1, function (u, v, z) {
+        if ((u === u0 || u === u1) && (z === z0 || z === z1)) { return dk; }
+        if (sang && (u === u0 + 2 || u === u1 - 2)) { return sang; }
+        return col;
+      });
+      B(mu - 1, v0, z1 + 1, mu + 1, v0, z1 + 1, [36, 36, 40]);
+    }
+    if (W < 4 || D < 3) { return; }
+    var w1 = Math.min(W - 1, 8), d1 = Math.min(D - 1, 3);
+    V(0, 0, 0, w1, d1, 9, K[0], [210, 210, 214]);
+    V(1, 0, 10, Math.max(4, w1 - 2), d1, 14, K[3], [60, 40, 20]);
+    if (D >= 6) { V(0, 4, 0, Math.min(W - 1, 6), Math.min(D - 1, 7), 6, K[1], [230, 200, 190]); }
+    if (W >= 10 && D >= 6) { B(W - 2, 4, 0, W - 1, 6, 8, [64, 90, 60]); B(W - 2, 4, 9, W - 1, 6, 9, [40, 56, 38]); }
+    if (W >= 6 && D >= 8) { B(0, 8, 0, Math.min(W - 1, 5), Math.min(D - 1, 9), 4, [196, 160, 110]); }
   },
   serviettes: function (o, A) {
     var c = A.cadre, W = c.W, B = A.B;
