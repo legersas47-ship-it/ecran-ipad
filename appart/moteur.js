@@ -215,7 +215,7 @@ var RENDUS = {
     B(0, 5, 6, W - 1, D - 1, 6, function (u, v) { return hs(u, v, 8) % 5 ? [226, 228, 234] : [210, 212, 220]; });
     B(0, Math.floor(D * 0.65), 7, W - 1, Math.floor(D * 0.65) + 3, 7, function (u, v) { return (u + v) % 4 === 0 ? [coul[0] + 30, coul[1] + 30, coul[2] + 30] : coul; });
     B(2, 6, 7, W - 3, Math.floor(D * 0.6), 7, function (u, v) { return hs(u, v, 2) % 4 ? null : [216, 218, 226]; });
-    if (o.perso) { A.acte('lit', m, D + 3, { pose: 'sleep', tx: m, ty: 2, tz: 8 }); }
+    A.acte(o.perso ? 'lit' : 'lit_coloc', m, D + 3, { pose: 'sleep', tx: m, ty: 2, tz: 8 });
   },
   tapis: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, B = A.B, p = o.couleur || [150, 60, 50];

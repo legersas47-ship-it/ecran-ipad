@@ -103,41 +103,50 @@ function chargerMeteo() {
 }
 if (params.pluie) { meteo.pluie = true; meteo.nuages = 0.9; } else { chargerMeteo(); setInterval(chargerMeteo, 15 * 60000); }
 
-/* ================= PERSONNAGE ================= */
-var PEAU = [168, 111, 69], PEAU_C = [198, 140, 94], PEAU_F = [112, 70, 40];
-var PULL = [211, 155, 58], PULL_F = [168, 116, 31], PANT = [44, 49, 64], CHAUS = [232, 228, 218], OEIL = [242, 232, 204], PUP = [40, 30, 28];
-
-function sprite(pose, pas, dos) {
-  var p = [], r, c, dx, dy, ins, nb;
+/* ================= PERSONNAGES ================= */
+var LOOKS = {
+  simon: { peau: [168, 111, 69], peauC: [198, 140, 94], peauF: [112, 70, 40], pull: [211, 155, 58], pullF: [168, 116, 31], pant: [44, 49, 64], chaus: [232, 228, 218], large: false, cheveux: null },
+  coloc: { peau: [234, 198, 172], peauC: [248, 222, 202], peauF: [192, 150, 124], pull: [84, 104, 128], pullF: [62, 78, 98], pant: [52, 58, 74], chaus: [44, 44, 48], large: true, cheveux: [94, 62, 40], cheveuxC: [126, 86, 56] }
+};
+var OEIL = [242, 232, 204], PUP = [40, 30, 28];
+function sprite(L, pose, pas, dos) {
+  var p = [], r, c, dx, dy, nb, lg = L.large;
   function put(cc, rr, col) { p.push([cc, rr, col]); }
   function dansTete(cc, rr) { dx = cc - 3.5; dy = rr - 3.5; return dx * dx + dy * dy <= 16.5; }
   for (r = 0; r < 8; r++) {
     for (c = 0; c < 8; c++) {
       if (!dansTete(c, r)) { continue; }
       nb = dansTete(c - 1, r) && dansTete(c + 1, r) && dansTete(c, r - 1) && dansTete(c, r + 1);
-      put(c, r, nb ? PEAU : PEAU_F);
+      var col = nb ? L.peau : L.peauF;
+      if (L.cheveux && (r <= 1 || (r === 2 && (c <= 1 || c >= 6)) || (dos && r <= 4) || (dos && r <= 6 && (c === 0 || c === 7)))) { col = (r === 0 || c === 0 || c === 7) ? L.cheveux : (r === 1 && c === 2 ? L.cheveuxC : L.cheveux); }
+      put(c, r, col);
     }
   }
-  put(2, 1, PEAU_C); put(3, 1, PEAU_C); put(2, 2, PEAU_C);
+  if (!L.cheveux) { put(2, 1, L.peauC); put(3, 1, L.peauC); put(2, 2, L.peauC); }
   if (!dos) {
     put(1, 3, OEIL); put(2, 3, OEIL); put(1, 4, OEIL); put(2, 4, PUP);
     put(5, 3, OEIL); put(6, 3, OEIL); put(5, 4, PUP); put(6, 4, OEIL);
   }
-  put(3, 8, PEAU_F); put(4, 8, PEAU_F);
-  for (r = 9; r <= 20; r++) { for (c = 2; c <= 5; c++) { put(c, r, c === 5 ? PULL_F : PULL); } }
-  for (r = 9; r <= 18; r++) { put(1, r, PULL_F); put(6, r, PULL_F); }
-  put(1, 19, PEAU); put(1, 20, PEAU); put(6, 19, PEAU); put(6, 20, PEAU);
+  put(3, 8, L.peauF); put(4, 8, L.peauF);
+  var t0 = lg ? 1 : 2, t1 = lg ? 6 : 5, bg = lg ? 0 : 1, bd = lg ? 7 : 6;
+  for (r = 9; r <= 20; r++) { for (c = t0; c <= t1; c++) { put(c, r, c === t1 ? L.pullF : L.pull); } }
+  if (lg) { for (c = t0; c <= t1; c++) { put(c, 21, L.pull); } }
+  for (r = 9; r <= 18; r++) { put(bg, r, L.pullF); put(bd, r, L.pullF); }
+  put(bg, 19, L.peau); put(bg, 20, L.peau); put(bd, 19, L.peau); put(bd, 20, L.peau);
   if (pose === 'sit') {
-    for (c = 1; c <= 6; c++) { put(c, 21, PANT); put(c, 22, PANT); }
+    for (c = bg; c <= bd; c++) { put(c, 21, L.pant); put(c, 22, L.pant); }
     return { px: p, h: 23 };
   }
-  for (r = 21; r <= 34; r++) {
+  var j0 = lg ? 1 : 2, j1 = lg ? 3 : 3, j2 = lg ? 4 : 4, j3 = lg ? 6 : 5;
+  for (r = (lg ? 22 : 21); r <= 34; r++) {
     var g = (pas && r >= 28) ? -1 : 0, d = (pas && r >= 28) ? 1 : 0;
-    put(2 + g, r, PANT); put(3 + g, r, PANT); put(4 + d, r, PANT); put(5 + d, r, PANT);
+    for (c = j0; c <= j1; c++) { put(c + g, r, L.pant); }
+    for (c = j2; c <= j3; c++) { put(c + d, r, L.pant); }
   }
   var g2 = pas ? -1 : 0, d2 = pas ? 1 : 0;
-  put(2 + g2, 35, CHAUS); put(3 + g2, 35, CHAUS); put(4 + d2, 35, CHAUS); put(5 + d2, 35, CHAUS);
-  put(1 + g2, 36, CHAUS); put(2 + g2, 36, CHAUS); put(3 + g2, 36, CHAUS); put(4 + d2, 36, CHAUS); put(5 + d2, 36, CHAUS); put(6 + d2, 36, CHAUS);
+  for (c = j0; c <= j1; c++) { put(c + g2, 35, L.chaus); put(c + g2, 36, L.chaus); }
+  for (c = j2; c <= j3; c++) { put(c + d2, 35, L.chaus); put(c + d2, 36, L.chaus); }
+  put(j0 - 1 + g2, 36, L.chaus); put(j3 + 1 + d2, 36, L.chaus);
   if (pose === 'guitar') {
     for (r = 15; r <= 20; r++) { for (c = 0; c <= 5; c++) { put(c, r, (r === 15 || r === 20 || c === 0 || c === 5) ? [70, 34, 20] : [214, 140, 40]); } }
     put(6, 14, [52, 36, 26]); put(7, 13, [52, 36, 26]); put(8, 12, [52, 36, 26]); put(9, 11, [52, 36, 26]); put(10, 10, [30, 24, 20]);
@@ -145,10 +154,10 @@ function sprite(pose, pas, dos) {
   return { px: p, h: 37 };
 }
 var SPR = {};
-function getSpr(pose, pas, dos) {
-  var k = pose + (pas ? 1 : 0) + (dos ? 'd' : 'f');
+function getSpr(look, pose, pas, dos) {
+  var k = look + pose + (pas ? 1 : 0) + (dos ? 'd' : 'f');
   if (!SPR[k]) {
-    var s = sprite(pose, pas, dos), j;
+    var s = sprite(LOOKS[look], pose, pas, dos), j;
     for (j = 0; j < s.px.length; j++) { s.px[j][2] = pack(s.px[j][2][0], s.px[j][2][1], s.px[j][2][2]); }
     SPR[k] = s;
   }
@@ -158,47 +167,73 @@ function getSpr(pose, pas, dos) {
 var ACTS = M.actes;
 function existe(n) { return !!ACTS[n]; }
 function filtre(t) { var r = [], j; for (j = 0; j < t.length; j++) { if (existe(t[j])) { r.push(t[j]); } } return r.length ? r : null; }
-var TOUS = filtre(['canape', 'table', 'guitare', 'cheminee', 'plantes', 'cuisine']) || [];
-function hasard(t) { t = filtre(t) || TOUS; return t[Math.floor(Math.random() * t.length)]; }
-function choisir(h) {
-  if (!TOUS.length && !existe('lit')) { return null; }
-  if (h >= 1 && h < 7 && existe('lit')) { return 'lit'; }
-  if (h >= 7 && h < 8.5) { return hasard(['cuisine']); }
-  if (h >= 12 && h < 13.5) { return hasard(['cuisine', 'table']); }
-  if (h >= 19 && h < 20.5) { return hasard(['cuisine', 'cuisine', 'table']); }
-  if (h >= 20.5 || h < 1) { return hasard(['canape', 'canape', 'canape', 'guitare', 'cheminee']); }
-  return hasard(['table', 'table', 'canape', 'plantes', 'guitare', 'cheminee', 'fenetre', 'cuisine']);
+
+/* routines : sommeil, puis activites par moment de la journee */
+var ROUTINES = {
+  simon: { lit: 'lit', dort: [1, 7], libre: ['canape', 'table', 'guitare', 'cheminee', 'plantes', 'cuisine'],
+    matin: ['cuisine'], midi: ['cuisine', 'table'], soirRepas: ['cuisine', 'cuisine', 'table'], soiree: ['canape', 'canape', 'canape', 'guitare', 'cheminee'],
+    jour: ['table', 'table', 'canape', 'plantes', 'guitare', 'cheminee', 'cuisine'] },
+  coloc: { lit: 'lit_coloc', dort: [0.5, 8.5], libre: ['canape', 'table', 'cuisine', 'cheminee', 'plantes'],
+    matin: ['cuisine', 'table'], midi: ['cuisine'], soirRepas: ['cuisine', 'table', 'table'], soiree: ['canape', 'table', 'cuisine', 'canape'],
+    jour: ['table', 'cuisine', 'canape', 'plantes', 'cheminee'] }
+};
+var PERSOS = [];
+function autre(P) { var j; for (j = 0; j < PERSOS.length; j++) { if (PERSOS[j] !== P && PERSOS[j].act && PERSOS[j].act.indexOf('lit') !== 0) { return PERSOS[j].act; } } return null; }
+function hasard(P, t) {
+  var R = ROUTINES[P.id], occupe = autre(P), c = filtre(t) || filtre(R.libre) || [], j, r = [];
+  for (j = 0; j < c.length; j++) { if (c[j] !== occupe) { r.push(c[j]); } }
+  if (!r.length) { r = filtre(R.libre) || []; for (j = r.length - 1; j >= 0; j--) { if (r[j] === occupe) { r.splice(j, 1); } } }
+  return r.length ? r[Math.floor(Math.random() * r.length)] : null;
 }
-var DEP = ACTS.cuisine || ACTS.canape || { ax: 4, ay: 4 }, P0 = [DEP.ax, DEP.ay];
-var P = { x: P0[0], y: P0[1], z: 1, pose: 'stand', dos: false, chemin: null, act: null, fin: 0, pas: 0 };
-function lancer(nom) {
+function dort(P, h) { var d = ROUTINES[P.id].dort; return d[0] < d[1] ? (h >= d[0] && h < d[1]) : (h >= d[0] || h < d[1]); }
+function choisir(P, h) {
+  var R = ROUTINES[P.id];
+  if (dort(P, h) && existe(R.lit)) { return R.lit; }
+  if (h >= 7 && h < 9) { return hasard(P, R.matin); }
+  if (h >= 12 && h < 13.5) { return hasard(P, R.midi); }
+  if (h >= 19 && h < 20.5) { return hasard(P, R.soirRepas); }
+  if (h >= 20.5 || h < 1) { return hasard(P, R.soiree); }
+  return hasard(P, R.jour);
+}
+function nouveauPerso(id, depart) {
+  var D = ACTS[depart] || ACTS.cuisine || ACTS.canape || { ax: 4, ay: 4 };
+  return { id: id, look: id, x: D.ax, y: D.ay, z: 1, pose: 'stand', dos: false, chemin: null, act: null, fin: 0, pas: Math.random() * 2, ecranX: 200, ecranY: 150 };
+}
+PERSOS.push(nouveauPerso('simon', 'cuisine'));
+if (existe('lit_coloc')) { PERSOS.push(nouveauPerso('coloc', 'table')); }
+var P = PERSOS[0];
+function estAuLit(P) { return P.act === ROUTINES[P.id].lit; }
+function lancer(P, nom) {
   if (!nom || !ACTS[nom]) { return; }
   var a = ACTS[nom], prev = P.act ? ACTS[P.act] : null;
   if (prev && (prev.sx !== undefined || prev.pose === 'sleep')) { P.x = prev.ax; P.y = prev.ay; }
   P.act = nom; P.pose = 'walk';
   P.chemin = chemin(P.x, P.y, a.ax, a.ay);
-  if (!P.chemin) { P.x = a.ax; P.y = a.ay; arriver(); }
+  if (!P.chemin) { P.x = a.ax; P.y = a.ay; arriver(P); }
 }
-function arriver() {
+function arriver(P) {
   var a = ACTS[P.act];
   P.chemin = null; P.pose = a.pose; P.dos = !!a.dos;
-  if (a.sx !== undefined) { P.x = a.sx; P.y = a.sy; }
+  if (a.sx !== undefined) { P.x = a.sx + (P.id === 'coloc' && P.act === 'canape' ? 0 : 0); P.y = a.sy; }
   P.fin = maintenant() + (20 + Math.random() * 50) * 60000;
 }
-function majPerso(t, dt) {
-  var h = heure(t), voulu = choisir(h);
+function majPerso(P, t, dt) {
+  var h = heure(t), voulu;
+  if (!P.act) { lancer(P, choisir(P, h)); }
   if (P.pose !== 'walk') {
-    if ((voulu === 'lit') !== (P.act === 'lit') || t > P.fin) { lancer(voulu === P.act && voulu !== 'lit' ? choisir(h) : voulu); }
+    voulu = choisir(P, h);
+    var lit = ROUTINES[P.id].lit;
+    if ((voulu === lit) !== estAuLit(P) || t > P.fin) { lancer(P, voulu === P.act && voulu !== lit ? choisir(P, h) : voulu); }
     return;
   }
-  var v = 7 * (VITESSES[vitIdx] > 1 ? 3 : 1) * dt, cible, dx, dy, d;
+  var v = 7 * (VITESSES[vitIdx] > 1 ? 3 : 1) * dt * (P.id === 'coloc' ? 0.85 : 1), cible, dx, dy, d;
   while (v > 0 && P.chemin && P.chemin.length) {
     cible = P.chemin[0]; dx = cible[0] - P.x; dy = cible[1] - P.y; d = Math.sqrt(dx * dx + dy * dy);
     if (d <= v) { P.x = cible[0]; P.y = cible[1]; P.chemin.shift(); v -= d; }
     else { P.x += dx / d * v; P.y += dy / d * v; P.dos = (dx + dy) < 0; v = 0; }
   }
   P.pas += dt * 6;
-  if (!P.chemin || !P.chemin.length) { arriver(); }
+  if (!P.chemin || !P.chemin.length) { arriver(P); }
 }
 
 /* ================= DESSIN PAR IMAGE ================= */
@@ -207,10 +242,11 @@ function blend(i, col, a) {
   frame[i] = pack(r + (col[0] - r) * a, g + (col[1] - g) * a, b + (col[2] - b) * a);
 }
 var persoX = 200, persoY = 150;
-function dessinerPerso() {
+function dessinerPerso(P) {
   var a = ACTS[P.act] || {};
   if (P.pose === 'sleep') {
-    var AL = ACTS.lit, hp = proj(AL.tx, AL.ty, AL.tz); persoX = hp[0]; persoY = hp[1]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
+    var hp = proj(a.tx, a.ty, a.tz); P.ecranX = hp[0]; P.ecranY = hp[1];
+    var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr(P.look, 'stand', false, true), j, e, x, y;
     for (j = 0; j < s.px.length; j++) {
       e = s.px[j]; if (e[1] > 7) { continue; }
       x = hx + e[0]; y = hy + e[1]; if (x >= 0 && y >= 0 && x < W && y < H) { frame[x + y * W] = e[2]; }
@@ -218,9 +254,9 @@ function dessinerPerso() {
     return;
   }
   var z = (P.pose === 'sit') ? a.sz : solA(P.x, P.y);
-  var pp = proj(P.x, P.y, z); persoX = pp[0]; persoY = pp[1] - 18; var pas = P.pose === 'walk' && (Math.floor(P.pas) % 2 === 1);
-  var sp = getSpr(P.pose === 'walk' ? 'stand' : P.pose, pas, P.dos);
-  var ox = Math.round(pp[0]) - 4, oy = Math.round(pp[1]) - sp.h + 1 - (P.pose === 'stand' && Math.floor(Date.now() / 900) % 2 ? 1 : 0);
+  var pp = proj(P.x, P.y, z); P.ecranX = pp[0]; P.ecranY = pp[1] - 18; var pas = P.pose === 'walk' && (Math.floor(P.pas) % 2 === 1);
+  var sp = getSpr(P.look, P.pose === 'walk' ? 'stand' : P.pose, pas, P.dos);
+  var ox = Math.round(pp[0]) - 4, oy = Math.round(pp[1]) - sp.h + 1 - (P.pose === 'stand' && Math.floor((Date.now() + (P.id === 'coloc' ? 450 : 0)) / 900) % 2 ? 1 : 0);
   var cle = Math.floor(P.x) + Math.floor(P.y) + 1, k, ee, xx, yy, ii;
   for (k = 0; k < sp.px.length; k++) {
     ee = sp.px[k]; xx = ox + ee[0]; yy = oy + ee[1];
@@ -230,6 +266,7 @@ function dessinerPerso() {
     frame[ii] = ee[2];
   }
 }
+function quelquUn(fn) { var j; for (j = 0; j < PERSOS.length; j++) { if (fn(PERSOS[j])) { return true; } } return false; }
 
 var particules = [];
 function particulesMaj(dt) {
@@ -270,8 +307,7 @@ var TV_PAL = [[[60, 110, 200], [230, 120, 80], [40, 60, 120], [240, 220, 180]], 
 function tick() {
   var now = Date.now(), dt = Math.min(0.3, (now - dernier) / 1000); dernier = now;
   var t = maintenant(), h = heure(t), j;
-  if (!P.act) { lancer(choisir(h)); }
-  majPerso(t, dt);
+  for (j = 0; j < PERSOS.length; j++) { majPerso(PERSOS[j], t, dt); }
   frame.set(base);
 
   // fenetre : ciel, etoiles, pluie
@@ -286,8 +322,8 @@ function tick() {
   }
 
   // TV
-  var a = ACTS[P.act] || {}, eveille = P.act !== 'lit' || P.pose === 'walk';
-  var tvOn = P.act === 'canape' && P.pose === 'sit' && (h >= 18 || h < 2);
+  var eveille = quelquUn(function (Q) { return !estAuLit(Q) || Q.pose === 'walk'; });
+  var tvOn = quelquUn(function (Q) { return Q.act === 'canape' && Q.pose === 'sit'; }) && (h >= 18 || h < 2);
   if (tvOn) {
     if (now > tvChange) { tvScene = (tvScene + 1) % TV_PAL.length; tvChange = now + 2500 + Math.random() * 4000; }
     var pal = TV_PAL[tvScene], fl2 = 0.85 + Math.random() * 0.15;
@@ -297,14 +333,17 @@ function tick() {
     }
   }
 
-  dessinerPerso();
+  var ordre = PERSOS.slice().sort(function (A1, B1) { return (A1.x + A1.y) - (B1.x + B1.y); });
+  for (j = 0; j < ordre.length; j++) { dessinerPerso(ordre[j]); }
+  persoX = PERSOS[0].ecranX; persoY = PERSOS[0].ecranY;
 
   // vapeur de cuisine et Zz
-  if (M.vapeur && P.act === 'cuisine' && P.pose !== 'walk' && Math.random() < 0.5) {
+  if (M.vapeur && quelquUn(function (Q) { return Q.act === 'cuisine' && Q.pose !== 'walk'; }) && Math.random() < 0.5) {
     var vp = proj(M.vapeur.x + Math.random() * 2, M.vapeur.y, M.vapeur.z + 1); particules.push({ x: vp[0], y: vp[1], vy: 6, vie: 1.6, s: Math.random() * 9 });
   }
-  if (P.act === 'lit' && P.pose === 'sleep' && Math.random() < 0.03) {
-    var zp = proj(ACTS.lit.tx, ACTS.lit.ty, ACTS.lit.tz + 4); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true });
+  for (var zi = 0; zi < PERSOS.length; zi++) {
+    var Q = PERSOS[zi], AQ = ACTS[Q.act];
+    if (Q.pose === 'sleep' && AQ && Math.random() < 0.03) { var zp = proj(AQ.tx, AQ.ty, AQ.tz + 4); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true }); }
   }
   particulesMaj(dt);
   cx.putImageData(img, 0, 0);
@@ -327,7 +366,7 @@ function tick() {
     else if (L.type === 'lampe_orange') { lueur(L.x, L.y, L.z, 46, '255,140,60', 0.36 * fli); }
     else if (L.type === 'lampe') { lueur(L.x, L.y, L.z, 34, '255,210,140', 0.26 * fli); }
     else if (L.type === 'bougie') { lueur(L.x, L.y, L.z, 10 + Math.random() * 3, '255,170,80', 0.5); }
-    else if (L.type === 'cuisine' && P.act === 'cuisine') { lueur(L.x, L.y, L.z, 60, '255,230,170', 0.3); }
+    else if (L.type === 'cuisine' && quelquUn(function (Q) { return Q.act === 'cuisine'; })) { lueur(L.x, L.y, L.z, 60, '255,230,170', 0.3); }
   }
   cx.globalCompositeOperation = 'source-over';
   camera();
