@@ -40,6 +40,10 @@
   <button data-outil="fenetre">+ Fenêtre</button>
   <button data-outil="gomme">Gomme</button>
   <span class="sep"></span>
+  <button data-outil="n_rect">✎ Cadre</button>
+  <button data-outil="n_trait">✎ Dessin</button>
+  <button data-outil="n_texte">✎ Texte</button>
+  <span class="sep"></span>
   <button id="ajout">+ Pièce</button>
   <button id="annuler">Annuler</button>
   <button id="reinit">Réinitialiser</button>
@@ -70,7 +74,10 @@ var AIDES = {
   select: "Clique une pièce pour la choisir. Glisse-la pour la déplacer, ou tire un de ses bords pour l'agrandir.",
   porte: "Clique sur un mur de la pièce choisie pour y percer une porte.",
   fenetre: "Clique sur un mur de la pièce choisie pour y ajouter une fenêtre. Elles se voient sur les murs du fond.",
-  gomme: "Clique sur une porte ou une fenêtre pour l'enlever."
+  gomme: "Clique sur une porte, une fenêtre ou une annotation pour l'enlever.",
+  n_rect: "Trace un cadre à la souris (par exemple là où est le canapé), puis donne-lui un nom.",
+  n_trait: "Dessine librement à la souris (rambarde, contour d'un meuble...), puis ajoute un nom si tu veux.",
+  n_texte: "Clique à un endroit du plan et écris ta note."
 };
 var COTES = { fond: 'mur du fond', avant: 'mur de devant', gauche: 'mur de gauche', droite: 'mur de droite' };
 
@@ -152,9 +159,52 @@ function dessinerPlan() {
     cP.strokeRect(X(p.x0) - 3, Y(p.y0) - 3, (p.x1 - p.x0) * S + 6, (p.y1 - p.y0) * S + 6);
     cP.setLineDash([]);
   }
+  dessinerNotes(cP, plan.notes || []);
+  if (notePrev) { dessinerNotes(cP, [notePrev]); }
   cP.fillStyle = '#8d879b'; cP.font = '11px -apple-system, Segoe UI, sans-serif'; cP.textAlign = 'left';
   cP.fillText('Fond (murs hauts) en haut et à gauche · 1 case = 1 m', 8, H - 8);
 }
+var ROSE = '#ff5fa2', notePrev = null;
+function dessinerNotes(c, notes) {
+  var i, n, j;
+  for (i = 0; i < notes.length; i++) {
+    n = notes[i];
+    c.strokeStyle = ROSE; c.fillStyle = ROSE; c.lineWidth = 2; c.setLineDash([]);
+    if (n.t === 'rect') {
+      c.fillStyle = 'rgba(255,95,162,0.15)'; c.fillRect(X(Math.min(n.x0, n.x1)), Y(Math.min(n.y0, n.y1)), Math.abs(n.x1 - n.x0) * S, Math.abs(n.y1 - n.y0) * S);
+      c.strokeRect(X(Math.min(n.x0, n.x1)), Y(Math.min(n.y0, n.y1)), Math.abs(n.x1 - n.x0) * S, Math.abs(n.y1 - n.y0) * S);
+    } else if (n.t === 'trait' && n.pts.length) {
+      c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); c.moveTo(X(n.pts[0][0]), Y(n.pts[0][1]));
+      for (j = 1; j < n.pts.length; j++) { c.lineTo(X(n.pts[j][0]), Y(n.pts[j][1])); }
+      c.stroke();
+    }
+    if (n.texte) {
+      var p = posTexte(n);
+      c.font = '600 12px -apple-system, Segoe UI, sans-serif'; c.textAlign = 'center';
+      var w = c.measureText(n.texte).width + 10;
+      c.fillStyle = ROSE; c.fillRect(X(p[0]) - w / 2, Y(p[1]) - 9, w, 18);
+      c.fillStyle = '#2a0716'; c.fillText(n.texte, X(p[0]), Y(p[1]) + 4);
+    } else if (n.t === 'texte') { c.fillRect(X(n.x) - 3, Y(n.y) - 3, 6, 6); }
+  }
+}
+function posTexte(n) {
+  if (n.t === 'rect') { return [(n.x0 + n.x1) / 2, (n.y0 + n.y1) / 2]; }
+  if (n.t === 'trait') { return n.pts[Math.floor(n.pts.length / 2)]; }
+  return [n.x, n.y];
+}
+function demanderTexte(defaut) { var t = window.prompt('Nom ou note (laisser vide si aucun) :', defaut || ''); return t === null ? null : t.trim(); }
+function noteSous(g) {
+  var notes = plan.notes || [], i, n, j, p;
+  for (i = notes.length - 1; i >= 0; i--) {
+    n = notes[i];
+    if (n.texte) { p = posTexte(n); if (Math.abs(g.x - p[0]) < 5 && Math.abs(g.y - p[1]) < 2.5) { return i; } }
+    if (n.t === 'rect' && g.x >= Math.min(n.x0, n.x1) && g.x <= Math.max(n.x0, n.x1) && g.y >= Math.min(n.y0, n.y1) && g.y <= Math.max(n.y0, n.y1)) { return i; }
+    if (n.t === 'trait') { for (j = 0; j < n.pts.length; j++) { if (Math.abs(g.x - n.pts[j][0]) < 1.5 && Math.abs(g.y - n.pts[j][1]) < 1.5) { return i; } } }
+    if (n.t === 'texte' && Math.abs(g.x - n.x) < 2 && Math.abs(g.y - n.y) < 2) { return i; }
+  }
+  return -1;
+}
+function arr1(v) { return Math.round(v * 2) / 2; }
 function X(v) { return (v + MARGE / 2) * S; }
 function Y(v) { return (v + MARGE / 2) * S; }
 function versGrille(ev) {
@@ -185,7 +235,19 @@ function coteProche(p, g, tol) {
 var glisse = null;
 cvP.addEventListener('pointerdown', function (ev) {
   var g = versGrille(ev), i, p;
+  if (outil === 'n_texte') {
+    var tx = demanderTexte('');
+    if (tx) { memo(); (plan.notes = plan.notes || []).push({ t: 'texte', x: arr1(g.x), y: arr1(g.y), texte: tx }); change(); }
+    return;
+  }
+  if (outil === 'n_rect' || outil === 'n_trait') {
+    notePrev = outil === 'n_rect' ? { t: 'rect', x0: arr1(g.x), y0: arr1(g.y), x1: arr1(g.x), y1: arr1(g.y) } : { t: 'trait', pts: [[arr1(g.x), arr1(g.y)]] };
+    cvP.setPointerCapture(ev.pointerId);
+    return;
+  }
   if (outil === 'gomme') {
+    var ni = noteSous(g);
+    if (ni >= 0) { memo(); plan.notes.splice(ni, 1); change(); msg('Annotation enlevée'); return; }
     for (i = 0; i < plan.pieces.length; i++) {
       p = plan.pieces[i];
       var ouv = p.ouvertures || [], j;
@@ -232,6 +294,11 @@ cvP.addEventListener('pointerdown', function (ev) {
 });
 cvP.addEventListener('pointermove', function (ev) {
   var g = versGrille(ev);
+  if (notePrev) {
+    if (notePrev.t === 'rect') { notePrev.x1 = arr1(g.x); notePrev.y1 = arr1(g.y); }
+    else { var der = notePrev.pts[notePrev.pts.length - 1]; if (Math.abs(der[0] - g.x) + Math.abs(der[1] - g.y) > 0.8) { notePrev.pts.push([arr1(g.x), arr1(g.y)]); } }
+    dessinerPlan(); return;
+  }
   if (!glisse) {
     var c = 'default';
     if (outil === 'select' && sel >= 0) {
@@ -258,6 +325,15 @@ cvP.addEventListener('pointermove', function (ev) {
   dessinerPlan(); afficherPanneau(true); apercuBientot();
 });
 cvP.addEventListener('pointerup', function () {
+  if (notePrev) {
+    var n = notePrev; notePrev = null;
+    var ok = n.t === 'rect' ? (Math.abs(n.x1 - n.x0) >= 1 && Math.abs(n.y1 - n.y0) >= 1) : n.pts.length > 1;
+    if (ok) {
+      var tx = demanderTexte('');
+      if (tx !== null) { if (tx) { n.texte = tx; } memo(); (plan.notes = plan.notes || []).push(n); change(); return; }
+    }
+    dessinerPlan(); return;
+  }
   if (glisse && !glisse.bouge) { histo.pop(); }
   if (glisse && glisse.bouge) { change(); }
   glisse = null;
@@ -266,8 +342,14 @@ cvP.addEventListener('pointerup', function () {
 /* ---------- panneau ---------- */
 function afficherPanneau(seulementChiffres) {
   if (sel < 0 || !plan.pieces[sel]) {
+    var notes = plan.notes || [], lst = '';
+    notes.forEach(function (n, i) { lst += '<div class="ouv"><span>' + (n.t === 'rect' ? 'Cadre' : (n.t === 'trait' ? 'Dessin' : 'Texte')) + (n.texte ? ' · ' + esc(n.texte) : '') + '</span><span><button data-nr="' + i + '">Renommer</button> <button data-nx="' + i + '">Enlever</button></span></div>'; });
     panneau.innerHTML = '<h2>Pièce</h2><p class="vide">Clique une pièce sur le plan pour la modifier.</p>' +
+      '<h2 style="margin-top:18px">Annotations (' + notes.length + ')</h2>' + (lst || '<p class="vide">Aucune. Utilise ✎ Cadre, ✎ Dessin ou ✎ Texte.</p>') +
       '<h2 style="margin-top:18px">Mode d’emploi</h2><p class="aide">1. Modifie les pièces, les portes et les fenêtres.<br>2. Clique « Voir en grand » pour tester sur cet ordinateur.<br>3. Clique « Copier le plan » et colle-le à Claude dans le chat : il le publie pour l’iPad.</p><textarea id="sortie" readonly></textarea>';
+    var bn = panneau.querySelectorAll('button[data-nx]'), br = panneau.querySelectorAll('button[data-nr]'), q;
+    for (q = 0; q < bn.length; q++) { bn[q].onclick = function () { memo(); plan.notes.splice(parseInt(this.getAttribute('data-nx'), 10), 1); change(); }; }
+    for (q = 0; q < br.length; q++) { br[q].onclick = function () { var n = plan.notes[parseInt(this.getAttribute('data-nr'), 10)], t = demanderTexte(n.texte); if (t !== null) { memo(); n.texte = t; change(); } }; }
     return;
   }
   var p = plan.pieces[sel];
@@ -341,6 +423,7 @@ for (k = 0; k < bo.length; k++) {
     outil = this.getAttribute('data-outil');
     for (var n = 0; n < bo.length; n++) { bo[n].className = bo[n] === this ? 'on' : ''; }
     document.getElementById('aideOutil').textContent = AIDES[outil];
+    if (outil.indexOf('n_') === 0) { sel = -1; afficherPanneau(); dessinerPlan(); }
   };
 }
 document.getElementById('ajout').onclick = function () {
