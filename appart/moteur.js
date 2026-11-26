@@ -55,7 +55,7 @@ function couleurSol(sol, x, y) {
 /* ---------- kits de meubles (coordonnees d'origine du prototype) ---------- */
 var AFFICHE = [[124, 74, 44], [58, 104, 62], [206, 160, 70], [92, 64, 120], [170, 92, 58], [90, 56, 40]];
 var KITS = {
-  salon: { ref: [0, 0, 6],
+  salon: { ref: [0, 0, 6], refW: 52, ancreX: 34,
     decoFond: function (x, z) {
       if (x >= 19 && x <= 31 && z >= 25 && z <= 32) {
         if (x === 19 || x === 31 || z === 25 || z === 32) { return [240, 238, 232]; }
@@ -127,7 +127,7 @@ var KITS = {
       feuillage(2, 56, 15, 3, 21);
     }
   },
-  cuisine: { ref: [52, 0, 1],
+  cuisine: { ref: [52, 0, 1], refW: 28,
     decoFond: function (x, z) {
       if (x >= 66 && x <= 79 && z >= 13 && z <= 18) {
         var zig = 18 - Math.abs(((x - 66) % 6) - 3);
@@ -151,25 +151,26 @@ var KITS = {
       for (x = 67; x <= 78; x += 2) { box(x, 2, 20, x, 2, 21, [196, 214, 228]); }
     }
   },
-  entree: { ref: [52, 30, 1],
+  entree: { ref: [52, 30, 1], refW: 28,
     meubles: function (k) {
       var box = k.box, add = k.add, x, y, z, s, top;
       // escalier : 5 marches qui montent vers le salon (cote gauche de l'entree)
+      var M2 = function (xx) { return k.escalierADroite ? 52 + k.largeur - (xx - 52) : xx; };
       for (x = 52; x <= 61; x++) {
         s = Math.floor((x - 52) / 2); top = 4 - s;
         for (y = 44; y <= 58; y++) {
-          k.sol(x, y, top + 1);
-          for (z = 0; z <= top; z++) { k.addAbs(x, y, z, varie(z === top ? PINE : [140, 86, 46], x, y, z, 3), 1); }
+          k.sol(M2(x), y, top + 1);
+          for (z = 0; z <= top; z++) { k.addAbs(M2(x), y, z, varie(z === top ? PINE : [140, 86, 46], x, y, z, 3), 1); }
         }
-        k.bloque(x, 59); k.addAbs(x, 59, top + 9, [150, 90, 46]);
+        k.bloque(M2(x), 59); k.addAbs(M2(x), 59, top + 9, [150, 90, 46]);
       }
-      for (z = 1; z <= 13; z++) { k.addAbs(61, 59, z, [140, 84, 42]); }
-      for (z = 5; z <= 14; z++) { k.addAbs(52, 59, z, [140, 84, 42]); }
+      for (z = 1; z <= 13; z++) { k.addAbs(M2(61), 59, z, [140, 84, 42]); }
+      for (z = 5; z <= 14; z++) { k.addAbs(M2(52), 59, z, [140, 84, 42]); }
       box(69, 44, 1, 71, 46, 1, [190, 196, 202], true); box(70, 45, 2, 70, 45, 7, [190, 196, 202]);
       box(69, 44, 8, 71, 46, 8, [86, 58, 40]); box(70, 46, 4, 71, 47, 9, [26, 26, 30]);
     }
   },
-  chambre1: { ref: [134, 28, 1],
+  chambre1: { ref: [134, 28, 1], refW: 46, ancreX: 150,
     meubles: function (k) {
       var box = k.box;
       box(135, 44, 1, 139, 58, 9, function (x, y, z) {
@@ -292,10 +293,13 @@ function construire(plan) {
   }
   var surSol = {};
   function ctxKit(p, kit) {
-    var r = kit.ref;
-    function T(x, y) { return [p.x0 + (x - r[0]), p.y0 + (y - r[1])]; }
+    var r = kit.ref, dw = kit.refW ? (p.x1 - p.x0) - kit.refW : 0;
+    function T(x, y) { var ax = (kit.ancreX !== undefined && x >= kit.ancreX) ? dw : 0; return [p.x0 + (x - r[0]) + ax, p.y0 + (y - r[1])]; }
     function TZ(z) { return p.niveau + (z - r[2]); }
+    var aDroite = false, q3;
+    for (q3 = 0; q3 < pieces.length; q3++) { if (pieces[q3].niveau > p.niveau && pieces[q3].x0 === p.x1 && pieces[q3].y0 < p.y1 && pieces[q3].y1 > p.y0) { aDroite = true; } }
     return {
+      largeur: p.x1 - p.x0, escalierADroite: aDroite,
       box: function (x0, y0, z0, x1, y1, z1, c, block) {
         var xx, yy, zz, t, cc;
         for (xx = x0; xx <= x1; xx++) {
@@ -340,6 +344,8 @@ function construire(plan) {
     x = i % SX; y = (i - x) / SX;
     var arr = Math.max(solInt(x + 1, y), solInt(x, y + 1)), dev = Math.max(solInt(x - 1, y), solInt(x, y - 1));
     if (arr < 0 && dev < 0) { arr = solInt(x + 1, y + 1); dev = solInt(x - 1, y - 1); }
+    var murG = dedans(x - 1, y) && mur[I(x - 1, y)], murH = dedans(x, y - 1) && mur[I(x, y - 1)];
+    if (arr > 0 && dev < 0 && (solInt(x - 1, y - 1) > 0 || (murG && murH))) { dev = arr; }
     if (arr > 0 && dev < 0) { hMur[i] = ZMAX - 1; }
     else if (arr > 0 && dev > 0) { hMur[i] = Math.max(arr, dev) + 5; }
     else if (dev > 0) { hMur[i] = dev; }
@@ -453,7 +459,8 @@ function construire(plan) {
   function versMonde(kit, x, y, z) {
     var R = reperes[kit];
     if (!R) { return null; }
-    return [R.p.x0 + (x - R.ref[0]), R.p.y0 + (y - R.ref[1]), z === undefined ? undefined : R.p.niveau + (z - R.ref[2])];
+    var K2 = KITS[kit], ax = (K2.ancreX !== undefined && x >= K2.ancreX && K2.refW) ? (R.p.x1 - R.p.x0) - K2.refW : 0;
+    return [R.p.x0 + (x - R.ref[0]) + ax, R.p.y0 + (y - R.ref[1]), z === undefined ? undefined : R.p.niveau + (z - R.ref[2])];
   }
 
   return {

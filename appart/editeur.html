@@ -84,8 +84,10 @@ function m2(v) { return (v / 10).toFixed(1).replace('.', ','); }
 function charger(cb) {
   var brouillon = null;
   try { brouillon = JSON.parse(localStorage.getItem('appart-plan')); } catch (e) {}
-  if (brouillon && brouillon.pieces) { cb(brouillon); return; }
-  chargerOriginal(cb);
+  chargerOriginal(function (publie) {
+    // un brouillon n'est repris que s'il part de la version publiee actuelle
+    if (brouillon && brouillon.pieces && (brouillon.rev || 0) === (publie.rev || 0)) { cb(brouillon); } else { cb(publie); }
+  });
 }
 function chargerOriginal(cb) {
   var x = new XMLHttpRequest();
