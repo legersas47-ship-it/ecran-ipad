@@ -8,8 +8,10 @@
 <title>Mon appart</title>
 <style>
   html, body { margin: 0; height: 100%; background: #16141b; overflow: hidden; }
-  #c { position: absolute; -webkit-transition: left 0.8s ease-out; transition: left 0.8s ease-out; image-rendering: -webkit-optimize-contrast; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; image-rendering: pixelated; }
+  #c { position: absolute; -webkit-transition: left 0.8s ease-out, top 0.8s ease-out; transition: left 0.8s ease-out, top 0.8s ease-out; image-rendering: -webkit-optimize-contrast; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; image-rendering: pixelated; }
   #hud { position: absolute; left: 12px; bottom: 10px; font: 12px -apple-system, Helvetica, Arial, sans-serif; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
+  #zoom { position: absolute; right: 64px; bottom: 8px; }
+  #zoom button { -webkit-appearance: none; background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; width: 30px; padding: 4px 0; margin-left: 6px; font: 13px -apple-system, Helvetica, Arial, sans-serif; }
   #vit { position: absolute; right: 12px; bottom: 8px; -webkit-appearance: none; background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 4px 12px; font: 12px -apple-system, Helvetica, Arial, sans-serif; }
 </style>
 </head>
@@ -17,6 +19,7 @@
 <canvas id="c"></canvas>
 <div id="hud"></div>
 <button id="vit" type="button">x1</button>
+<div id="zoom"><button id="zm" type="button">−</button><button id="zp" type="button">+</button></div>
 <script src="moteur.js"></script>
 <script>
 /* Mon appart en pixel art — v0.2 (ES5 pour iPad mini 2 / iOS 12).
@@ -203,11 +206,11 @@ function blend(i, col, a) {
   var o = frame[i], r = o & 255, g = (o >> 8) & 255, b = (o >> 16) & 255;
   frame[i] = pack(r + (col[0] - r) * a, g + (col[1] - g) * a, b + (col[2] - b) * a);
 }
-var persoX = 200;
+var persoX = 200, persoY = 150;
 function dessinerPerso() {
   var a = ACTS[P.act] || {};
   if (P.pose === 'sleep') {
-    var AL = ACTS.lit, hp = proj(AL.tx, AL.ty, AL.tz); persoX = hp[0]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
+    var AL = ACTS.lit, hp = proj(AL.tx, AL.ty, AL.tz); persoX = hp[0]; persoY = hp[1]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
     for (j = 0; j < s.px.length; j++) {
       e = s.px[j]; if (e[1] > 7) { continue; }
       x = hx + e[0]; y = hy + e[1]; if (x >= 0 && y >= 0 && x < W && y < H) { frame[x + y * W] = e[2]; }
@@ -215,7 +218,7 @@ function dessinerPerso() {
     return;
   }
   var z = (P.pose === 'sit') ? a.sz : solA(P.x, P.y);
-  var pp = proj(P.x, P.y, z); persoX = pp[0]; var pas = P.pose === 'walk' && (Math.floor(P.pas) % 2 === 1);
+  var pp = proj(P.x, P.y, z); persoX = pp[0]; persoY = pp[1] - 18; var pas = P.pose === 'walk' && (Math.floor(P.pas) % 2 === 1);
   var sp = getSpr(P.pose === 'walk' ? 'stand' : P.pose, pas, P.dos);
   var ox = Math.round(pp[0]) - 4, oy = Math.round(pp[1]) - sp.h + 1 - (P.pose === 'stand' && Math.floor(Date.now() / 900) % 2 ? 1 : 0);
   var cle = Math.floor(P.x) + Math.floor(P.y) + 1, k, ee, xx, yy, ii;
@@ -335,28 +338,30 @@ function tick() {
 }
 
 /* ================= TAILLE ECRAN ================= */
-var echelle = 1, portrait = false;
+var echelle = 1, portrait = false, zoom = 1;
+try { zoom = parseFloat(localStorage.getItem('appart-zoom')) || 1; } catch (e) {}
 function ajuster() {
   var iw = window.innerWidth, ih = window.innerHeight, s;
   portrait = iw < ih;
-  if (portrait) { s = ih / H; }                       // iPhone : la vue remplit la hauteur, la camera suit le perso
-  else {
-    s = Math.min(iw / W, ih / H);
-    if (s >= 1) { s = Math.floor(s * 2) / 2; if (s >= 2) { s = Math.floor(s); } }
-  }
-  echelle = s;
-  cv.style.width = Math.round(W * s) + 'px'; cv.style.height = Math.round(H * s) + 'px';
-  cv.style.top = Math.round((ih - H * s) / 2) + 'px';
+  if (portrait) { s = ih / H; }
+  else { s = Math.min(iw / W, ih / H); if (s >= 1) { s = Math.floor(s * 2) / 2; if (s >= 2) { s = Math.floor(s); } } }
+  echelle = s * zoom;
+  cv.style.width = Math.round(W * echelle) + 'px'; cv.style.height = Math.round(H * echelle) + 'px';
   camera();
 }
 function camera() {
-  var iw = window.innerWidth, l;
-  if (!portrait) { l = (iw - W * echelle) / 2; }
-  else { l = iw / 2 - persoX * echelle; l = Math.max(iw - W * echelle, Math.min(0, l)); }
-  cv.style.left = Math.round(l) + 'px';
+  var iw = window.innerWidth, ih = window.innerHeight, l, t, cw = W * echelle, chh = H * echelle;
+  if (cw <= iw) { l = (iw - cw) / 2; } else { l = Math.max(iw - cw, Math.min(0, iw / 2 - persoX * echelle)); }
+  if (chh <= ih) { t = (ih - chh) / 2; } else { t = Math.max(ih - chh, Math.min(0, ih / 2 - persoY * echelle)); }
+  cv.style.left = Math.round(l) + 'px'; cv.style.top = Math.round(t) + 'px';
 }
-
-
+function changerZoom(f) {
+  zoom = Math.max(1, Math.min(4, zoom * f)); if (zoom < 1.2) { zoom = 1; }
+  try { localStorage.setItem('appart-zoom', String(zoom)); } catch (e) {}
+  ajuster();
+}
+document.getElementById('zp').onclick = function () { changerZoom(1.5); };
+document.getElementById('zm').onclick = function () { changerZoom(1 / 1.5); };
 window.addEventListener('resize', ajuster);
 ajuster();
 tick();

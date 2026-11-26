@@ -207,13 +207,45 @@ var RENDUS = {
     }, true);
   },
   lit: function (o, A) {
-    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
-    B(0, 0, 0, W - 1, D - 1, 2, [150, 150, 154], true);
-    B(0, 0, 3, W - 1, D - 1, 5, [240, 240, 236], true);
-    B(1, 1, 6, W - 2, 3, 6, [252, 252, 250], true);
-    B(0, 5, 6, W - 1, D - 1, 6, function (u, v) { return hs(u, v, 8) % 5 ? [222, 224, 230] : [206, 208, 216]; });
-    B(2, 7, 7, W - 3, D - 3, 7, function (u, v) { return hs(u, v, 2) % 3 ? null : [214, 216, 222]; });
-    if (o.perso) { A.acte('lit', m, D + 3, { pose: 'sleep', tx: m, ty: 2, tz: 7 }); }
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B, coul = o.couleur || [70, 110, 150];
+    B(0, 0, 0, W - 1, 0, 9, function (u, v, z) { return z === 9 ? [176, 132, 84] : [196, 152, 100]; }, true);
+    B(0, 1, 0, W - 1, D - 1, 2, [150, 150, 154], true);
+    B(0, 1, 3, W - 1, D - 1, 5, [240, 240, 236], true);
+    B(1, 1, 6, m - 1, 3, 7, [252, 252, 250], true); B(m + 1, 1, 6, W - 2, 3, 7, [250, 250, 246], true);
+    B(0, 5, 6, W - 1, D - 1, 6, function (u, v) { return hs(u, v, 8) % 5 ? [226, 228, 234] : [210, 212, 220]; });
+    B(0, Math.floor(D * 0.65), 7, W - 1, Math.floor(D * 0.65) + 3, 7, function (u, v) { return (u + v) % 4 === 0 ? [coul[0] + 30, coul[1] + 30, coul[2] + 30] : coul; });
+    B(2, 6, 7, W - 3, Math.floor(D * 0.6), 7, function (u, v) { return hs(u, v, 2) % 4 ? null : [216, 218, 226]; });
+    if (o.perso) { A.acte('lit', m, D + 3, { pose: 'sleep', tx: m, ty: 2, tz: 8 }); }
+  },
+  tapis: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B, p = o.couleur || [150, 60, 50];
+    B(0, 0, 0, W - 1, D - 1, 0, function (u, v) {
+      if (u === 0 || v === 0 || u === W - 1 || v === D - 1) { return [220, 200, 160]; }
+      var k = (Math.abs(u - W / 2) + Math.abs(v - D / 2)) | 0;
+      return k % 4 === 0 ? [230, 214, 176] : (k % 4 === 2 ? [p[0] * 0.7, p[1] * 0.7, p[2] * 0.7] : p);
+    });
+  },
+  chevet: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 4), B = A.B, m = Math.floor(W / 2);
+    B(0, 0, 0, W - 1, d - 1, 5, function (u, v, z) { return (v === d - 1 && z === 3) ? [150, 100, 56] : varie([210, 166, 108], u, v, z, 2); }, true);
+    B(m, 1, 6, m, 1, 7, [60, 60, 60]); B(m - 1, 0, 8, m + 1, 2, 10, [240, 226, 190]);
+    B(W - 1, 2, 6, W - 1, 2, 6, [40, 40, 44]);
+    A.lumiere('lampe', m, 1, 9);
+  },
+  chaise_bureau: function (o, A) {
+    var c = A.cadre, u = Math.floor(c.W / 2), v = Math.floor(c.D / 2), B = A.B;
+    B(u - 1, v - 1, 0, u + 1, v + 1, 0, [40, 40, 44], true); B(u, v, 1, u, v, 4, [60, 60, 64]);
+    B(u - 1, v - 1, 5, u + 1, v + 1, 5, [50, 50, 58]); B(u - 1, v + 1, 6, u + 1, v + 1, 11, [50, 50, 58]);
+  },
+  vetements: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B;
+    B(0, 0, 0, W - 1, D - 1, 2, function (u, v, z) { var h = hs(u, v, z); if (z === 2 && h % 2) { return null; } return [[40, 40, 46], [90, 110, 140], [200, 200, 196], [150, 60, 60]][h % 4]; });
+  },
+  serviettes: function (o, A) {
+    var c = A.cadre, W = c.W, B = A.B;
+    B(0, 0, 0, 0, 0, 15, [190, 196, 204]); B(W - 1, 0, 0, W - 1, 0, 15, [190, 196, 204]);
+    B(0, 0, 14, W - 1, 0, 14, [190, 196, 204]);
+    B(1, 0, 8, W - 2, 0, 13, function (u) { return u < W / 2 ? [230, 120, 150] : [120, 170, 200]; });
   },
   guitare: function (o, A) {
     var c = A.cadre, u = Math.floor(c.W / 2), B = A.B;
@@ -230,17 +262,23 @@ var RENDUS = {
     B(0, 0, 0, W - 1, d - 1, 8, function (u, v, z) { var du = u - m, dz = z - 4; if (v === d - 1 && du * du + dz * dz <= 5) { return du * du + dz * dz <= 2 ? [60, 80, 100] : [170, 176, 184]; } return [240, 240, 238]; }, true);
   },
   wc: function (o, A) {
-    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
-    B(m - 2, 0, 0, m + 2, 1, 7, [244, 244, 242], true);
-    B(m - 1, 2, 0, m + 1, Math.min(D - 1, 5), 3, [244, 244, 242], true);
-    B(m - 1, 3, 4, m + 1, Math.min(D - 1, 5), 4, [210, 214, 220]);
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B, f = Math.min(D - 1, 6);
+    B(m - 2, 0, 0, m + 2, 1, 9, function (u, v, z) { return z === 9 ? [226, 228, 232] : (z === 8 && u === m && v === 1 ? [190, 196, 204] : [246, 246, 244]); }, true);
+    B(m - 1, 2, 0, m + 1, f, 2, [240, 240, 238], true);
+    B(m - 2, 2, 3, m + 2, f, 3, function (u, v) { var bord = (u === m - 2 || u === m + 2 || v === f || v === 2); if ((u === m - 2 || u === m + 2) && v === f) { return null; } return bord ? [250, 250, 250] : [150, 180, 200]; });
+    B(m - 2, 2, 4, m + 2, 2, 8, [236, 236, 234]);
+    B(W - 1, 2, 5, W - 1, 3, 6, [252, 252, 250]);
+    B(0, f, 0, 0, f, 2, [120, 160, 200]);
   },
   douche: function (o, A) {
     var c = A.cadre, W = c.W, D = c.D, B = A.B;
-    B(0, 0, 0, W - 1, D - 1, 0, [236, 238, 240], true);
-    B(W - 1, 0, 1, W - 1, D - 1, 19, function (u, v, z) { return (v === 0 || v === D - 1 || z === 19) ? [190, 196, 204] : (z % 4 === 0 ? [200, 220, 232] : null); });
-    B(0, D - 1, 1, W - 2, D - 1, 19, function (u, v, z) { return (u === 0 || z === 19) ? [190, 196, 204] : (z % 4 === 0 ? [200, 220, 232] : null); });
-    B(1, 0, 18, 2, 1, 18, [180, 184, 190]);
+    B(0, 0, 0, W - 1, D - 1, 0, function (u, v) { return ((u >> 1) + (v >> 1)) % 2 ? [228, 236, 242] : [196, 214, 228]; }, true);
+    B(1, 1, 1, W - 2, D - 2, 1, function (u, v) { return (u === Math.floor(W / 2) && v === Math.floor(D / 2)) ? [120, 126, 134] : null; });
+    B(W - 1, 0, 1, W - 1, D - 1, 19, function (u, v, z) { return (v === 0 || v === D - 1 || z === 19) ? [180, 186, 194] : (z % 3 === 0 ? [206, 226, 238] : null); });
+    B(0, D - 1, 1, W - 2, D - 1, 19, function (u, v, z) { return (u === 0 || z === 19) ? [180, 186, 194] : (z % 3 === 0 ? [206, 226, 238] : null); });
+    B(1, 0, 1, 1, 0, 18, [170, 176, 184]); B(1, 0, 18, 3, 1, 18, [190, 196, 204]); B(3, 1, 17, 3, 1, 17, [220, 230, 240]);
+    B(Math.floor(W / 2), 0, 10, Math.floor(W / 2) + 1, 0, 10, [230, 120, 150]);
+    B(W + 1, 1, 0, W + 4, 3, 0, [120, 170, 200]);
   },
   lavabo: function (o, A) {
     var c = A.cadre, W = c.W, d = Math.min(c.D, 5), m = Math.floor(W / 2), B = A.B;
