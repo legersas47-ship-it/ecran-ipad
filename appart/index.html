@@ -12,7 +12,7 @@
   html, body { margin: 0; height: 100%; background: #16141b; overflow: hidden; }
   #c { position: absolute; -webkit-transition: left 0.8s ease-out, top 0.8s ease-out; transition: left 0.8s ease-out, top 0.8s ease-out; image-rendering: -webkit-optimize-contrast; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; image-rendering: pixelated; }
   #hud { position: absolute; left: 12px; bottom: 10px; font: 12px -apple-system, Helvetica, Arial, sans-serif; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
-  #zoom { position: absolute; right: 64px; bottom: 8px; }
+  #zoom { position: absolute; right: 70px; bottom: 8px; }
   #zoom button { -webkit-appearance: none; background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; width: 30px; padding: 4px 0; margin-left: 6px; font: 13px -apple-system, Helvetica, Arial, sans-serif; }
   #vit { position: absolute; right: 12px; bottom: 8px; -webkit-appearance: none; background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; padding: 4px 12px; font: 12px -apple-system, Helvetica, Arial, sans-serif; }
 </style>
@@ -21,7 +21,7 @@
 <canvas id="c"></canvas>
 <div id="hud"></div>
 <button id="vit" type="button">x1</button>
-<div id="zoom"><button id="zm" type="button">−</button><button id="zp" type="button">+</button></div>
+<div id="zoom"><button id="zm" type="button">−</button><button id="zp" type="button">+</button><button id="rec" type="button">◎</button></div>
 <script src="moteur.js"></script>
 <script>
 /* Mon appart en pixel art — v0.2 (ES5 pour iPad mini 2 / iOS 12).
@@ -447,30 +447,79 @@ function tick() {
 }
 
 /* ================= TAILLE ECRAN ================= */
-var echelle = 1, portrait = false, zoom = 1;
+var echelle = 1, portrait = false, zoom = 1, manuel = false, offL = 0, offT = 0, curL = 0, curT = 0;
 try { zoom = parseFloat(localStorage.getItem('appart-zoom')) || 1; } catch (e) {}
 function ajuster() {
   var iw = window.innerWidth, ih = window.innerHeight, s;
   portrait = iw < ih;
   if (portrait) { s = ih / H; }
-  else { s = Math.min(iw / W, ih / H); if (s >= 1) { s = Math.floor(s * 2) / 2; if (s >= 2) { s = Math.floor(s); } } }
+  else { s = Math.min(iw / W, (ih - 34) / H); if (iw > 1000 && s >= 1) { s = Math.floor(s * 2) / 2; if (s >= 2) { s = Math.floor(s); } } }
   echelle = s * zoom;
   cv.style.width = Math.round(W * echelle) + 'px'; cv.style.height = Math.round(H * echelle) + 'px';
   camera();
 }
+function borner() {
+  var iw = window.innerWidth, ih = window.innerHeight, cw = W * echelle, chh = H * echelle;
+  offL = cw <= iw ? (iw - cw) / 2 : Math.max(iw - cw, Math.min(0, offL));
+  offT = chh <= ih ? (ih - chh) / 2 : Math.max(ih - chh, Math.min(0, offT));
+}
 function camera() {
-  var iw = window.innerWidth, ih = window.innerHeight, l, t, cw = W * echelle, chh = H * echelle;
-  if (cw <= iw) { l = (iw - cw) / 2; } else { l = Math.max(iw - cw, Math.min(0, iw / 2 - persoX * echelle)); }
-  if (chh <= ih) { t = (ih - chh) / 2; } else { t = Math.max(ih - chh, Math.min(0, ih / 2 - persoY * echelle)); }
-  cv.style.left = Math.round(l) + 'px'; cv.style.top = Math.round(t) + 'px';
+  var iw = window.innerWidth, ih = window.innerHeight, cw = W * echelle, chh = H * echelle;
+  if (manuel) { borner(); curL = offL; curT = offT; }
+  else {
+    if (cw <= iw) { curL = (iw - cw) / 2; } else { curL = Math.max(iw - cw, Math.min(0, iw / 2 - persoX * echelle)); }
+    if (chh <= ih) { curT = (ih - chh) / 2; } else { curT = Math.max(ih - chh, Math.min(0, ih / 2 - persoY * echelle)); }
+  }
+  cv.style.left = Math.round(curL) + 'px'; cv.style.top = Math.round(curT) + 'px';
+}
+function reglerZoom(z, px, py) {
+  var wx = (px - curL) / echelle, wy = (py - curT) / echelle;
+  zoom = Math.max(1, Math.min(8, z)); if (zoom < 1.05) { zoom = 1; manuel = false; }
+  try { localStorage.setItem('appart-zoom', String(zoom)); } catch (e) {}
+  var ancien = manuel;
+  ajuster();
+  if (zoom > 1 && ancien) { offL = px - wx * echelle; offT = py - wy * echelle; camera(); }
 }
 function changerZoom(f) {
-  zoom = Math.max(1, Math.min(4, zoom * f)); if (zoom < 1.2) { zoom = 1; }
-  try { localStorage.setItem('appart-zoom', String(zoom)); } catch (e) {}
-  ajuster();
+  var px = window.innerWidth / 2, py = window.innerHeight / 2;
+  if (!manuel) { px = curL + persoX * echelle; py = curT + persoY * echelle; }
+  reglerZoom(zoom * f, px, py);
 }
 document.getElementById('zp').onclick = function () { changerZoom(1.5); };
 document.getElementById('zm').onclick = function () { changerZoom(1 / 1.5); };
+document.getElementById('rec').onclick = function () { manuel = false; cv.style.webkitTransition = ''; cv.style.transition = ''; camera(); };
+
+/* navigation tactile : glisser pour se deplacer, pincer pour zoomer, double tap = suivre le perso */
+(function () {
+  var mode = 0, x0, y0, l0, t0, d0, z0, dernier = 0, bouge = false;
+  function coupe(on) { var v = on ? 'none' : ''; cv.style.webkitTransition = v; cv.style.transition = v; }
+  function dist(e) { var a = e.touches[0], b = e.touches[1]; return Math.sqrt(Math.pow(a.clientX - b.clientX, 2) + Math.pow(a.clientY - b.clientY, 2)); }
+  function cible(e) { return e.target && e.target.tagName === 'BUTTON'; }
+  document.addEventListener('touchstart', function (e) {
+    if (cible(e)) { return; }
+    if (e.touches.length === 1) {
+      mode = 1; bouge = false; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; l0 = curL; t0 = curT;
+      var n = Date.now(); if (n - dernier < 320) { manuel = false; coupe(false); camera(); } dernier = n;
+    } else if (e.touches.length === 2) {
+      mode = 2; d0 = dist(e); z0 = zoom; manuel = true; offL = curL; offT = curT; coupe(true);
+    }
+  }, false);
+  document.addEventListener('touchmove', function (e) {
+    if (cible(e) || !mode) { return; }
+    e.preventDefault();
+    if (mode === 1 && e.touches.length === 1) {
+      var dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0;
+      if (!bouge && Math.abs(dx) + Math.abs(dy) < 6) { return; }
+      if (!bouge) { bouge = true; if (zoom > 1) { manuel = true; coupe(true); } }
+      if (manuel) { offL = l0 + dx; offT = t0 + dy; camera(); }
+    } else if (mode === 2 && e.touches.length === 2) {
+      var a = e.touches[0], b = e.touches[1];
+      reglerZoom(z0 * dist(e) / d0, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+      manuel = zoom > 1; if (manuel) { coupe(true); }
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', function (e) { if (e.touches.length === 0) { mode = 0; } else if (e.touches.length === 1) { mode = 1; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; l0 = curL; t0 = curT; } }, false);
+})();
 window.addEventListener('resize', ajuster);
 ajuster();
 tick();
