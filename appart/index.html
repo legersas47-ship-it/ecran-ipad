@@ -38,9 +38,6 @@ fl = M.fl; occ = M.occ; SX = M.SX; CW = M.CW; CHh = M.CH; cwalk = M.cwalk; cht =
 cv.width = W; cv.height = H;
 img = cx.createImageData(W, H);
 frame = new Uint32Array(img.data.buffer);
-function KW(kit, x, y, z) { var r = M.versMonde(kit, x, y, z); return r || [x, y, z]; }
-function projK(kit, x, y, z) { var w = KW(kit, x, y, z); return proj(w[0], w[1], w[2]); }
-function lueurK(kit, x, y, z, r, col, a) { var w = KW(kit, x, y, z); lueur(w[0], w[1], w[2], r, col, a); }
 function chemin(x, y, tx, ty) {
   var s = Math.floor(x / 2) + Math.floor(y / 2) * CW, g = Math.floor(tx / 2) + Math.floor(ty / 2) * CW;
   var prev = new Int32Array(CW * CHh), file = [s], k = 0, c, a, b, n, d, nb;
@@ -155,37 +152,24 @@ function getSpr(pose, pas, dos) {
   return SPR[k];
 }
 
-var ACTS = {
-  canape:   { ax: 22, ay: 46, sx: 22, sy: 52, sz: 11, pose: 'sit', dos: true },
-  table:    { ax: 16, ay: 35, sx: 15, sy: 28, sz: 12, pose: 'sit', dos: true },
-  guitare:  { ax: 14, ay: 8, pose: 'guitar', dos: false },
-  cheminee: { ax: 25, ay: 10, pose: 'stand', dos: true },
-  plantes:  { ax: 6, ay: 9, pose: 'stand', dos: true },
-  cuisine:  { ax: 66, ay: 9, pose: 'stand', dos: true, vapeur: true },
-  fenetre:  { ax: 45, ay: 30, pose: 'stand', dos: false },
-  lit:      { ax: 156, ay: 36, pose: 'sleep' }
-};
-var KIT_ACT = { cuisine: 'cuisine', lit: 'chambre1' };
-(function () {
-  var n, a, w;
-  for (n in ACTS) {
-    a = ACTS[n]; var kit = KIT_ACT[n] || 'salon';
-    w = KW(kit, a.ax, a.ay); a.ax = w[0]; a.ay = w[1];
-    if (a.sx !== undefined) { w = KW(kit, a.sx, a.sy, a.sz); a.sx = w[0]; a.sy = w[1]; a.sz = w[2]; }
-  }
-})();
-function hasard(t) { return t[Math.floor(Math.random() * t.length)]; }
+var ACTS = M.actes;
+function existe(n) { return !!ACTS[n]; }
+function filtre(t) { var r = [], j; for (j = 0; j < t.length; j++) { if (existe(t[j])) { r.push(t[j]); } } return r.length ? r : null; }
+var TOUS = filtre(['canape', 'table', 'guitare', 'cheminee', 'plantes', 'cuisine']) || [];
+function hasard(t) { t = filtre(t) || TOUS; return t[Math.floor(Math.random() * t.length)]; }
 function choisir(h) {
-  if (h >= 1 && h < 7) { return 'lit'; }
-  if (h >= 7 && h < 8.5) { return 'cuisine'; }
+  if (!TOUS.length && !existe('lit')) { return null; }
+  if (h >= 1 && h < 7 && existe('lit')) { return 'lit'; }
+  if (h >= 7 && h < 8.5) { return hasard(['cuisine']); }
   if (h >= 12 && h < 13.5) { return hasard(['cuisine', 'table']); }
   if (h >= 19 && h < 20.5) { return hasard(['cuisine', 'cuisine', 'table']); }
   if (h >= 20.5 || h < 1) { return hasard(['canape', 'canape', 'canape', 'guitare', 'cheminee']); }
   return hasard(['table', 'table', 'canape', 'plantes', 'guitare', 'cheminee', 'fenetre', 'cuisine']);
 }
-var P0 = KW('cuisine', 66, 16);
+var DEP = ACTS.cuisine || ACTS.canape || { ax: 4, ay: 4 }, P0 = [DEP.ax, DEP.ay];
 var P = { x: P0[0], y: P0[1], z: 1, pose: 'stand', dos: false, chemin: null, act: null, fin: 0, pas: 0 };
 function lancer(nom) {
+  if (!nom || !ACTS[nom]) { return; }
   var a = ACTS[nom], prev = P.act ? ACTS[P.act] : null;
   if (prev && (prev.sx !== undefined || prev.pose === 'sleep')) { P.x = prev.ax; P.y = prev.ay; }
   P.act = nom; P.pose = 'walk';
@@ -223,7 +207,7 @@ var persoX = 200;
 function dessinerPerso() {
   var a = ACTS[P.act] || {};
   if (P.pose === 'sleep') {
-    var hp = projK('chambre1', 175, 45, 8); persoX = hp[0]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
+    var AL = ACTS.lit, hp = proj(AL.tx, AL.ty, AL.tz); persoX = hp[0]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
     for (j = 0; j < s.px.length; j++) {
       e = s.px[j]; if (e[1] > 7) { continue; }
       x = hx + e[0]; y = hy + e[1]; if (x >= 0 && y >= 0 && x < W && y < H) { frame[x + y * W] = e[2]; }
@@ -313,11 +297,11 @@ function tick() {
   dessinerPerso();
 
   // vapeur de cuisine et Zz
-  if (P.act === 'cuisine' && P.pose !== 'walk' && Math.random() < 0.5) {
-    var vp = projK('cuisine', 61 + Math.random() * 2, 4, 12); particules.push({ x: vp[0], y: vp[1], vy: 6, vie: 1.6, s: Math.random() * 9 });
+  if (M.vapeur && P.act === 'cuisine' && P.pose !== 'walk' && Math.random() < 0.5) {
+    var vp = proj(M.vapeur.x + Math.random() * 2, M.vapeur.y, M.vapeur.z + 1); particules.push({ x: vp[0], y: vp[1], vy: 6, vie: 1.6, s: Math.random() * 9 });
   }
   if (P.act === 'lit' && P.pose === 'sleep' && Math.random() < 0.03) {
-    var zp = projK('chambre1', 175, 45, 12); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true });
+    var zp = proj(ACTS.lit.tx, ACTS.lit.ty, ACTS.lit.tz + 4); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true });
   }
   particulesMaj(dt);
   cx.putImageData(img, 0, 0);
@@ -329,17 +313,19 @@ function tick() {
   cx.fillStyle = 'rgb(' + (amb[0] | 0) + ',' + (amb[1] | 0) + ',' + (amb[2] | 0) + ')';
   cx.fillRect(0, 0, W, H);
   cx.globalCompositeOperation = 'lighter';
-  if (h > 8 && h < 18) { lueurK('salon', 8, 30, 6, 70, '255,236,190', meteo.pluie ? 0.08 : 0.16); }
-  if (lampes) {
-    var fli = 0.95 + Math.random() * 0.05;
-    lueurK('salon', 35, 7, 25, 60, '255,190,110', 0.34 * fli);
-    lueurK('salon', 2, 53, 14, 46, '255,140,60', 0.36 * fli);
-    lueurK('salon', 7, 4, 12, 26, '255,210,140', 0.22);
-    lueurK('salon', 31, 4, 19, 10 + Math.random() * 3, '255,170,80', 0.5);
-    if (P.act === 'cuisine') { lueurK('cuisine', 66, 12, 24, 60, '255,230,170', 0.3); }
+  var jl, L;
+  if (h > 8 && h < 18) { for (jl = 0; jl < M.jours.length; jl++) { L = M.jours[jl]; lueur(L.x, L.y, L.z, 60, '255,236,190', meteo.pluie ? 0.07 : 0.14); } }
+  var fli = 0.95 + Math.random() * 0.05;
+  for (jl = 0; jl < M.lumieres.length; jl++) {
+    L = M.lumieres[jl];
+    if (L.type === 'tv') { if (tvOn) { lueur(L.x, L.y, L.z, 46, '110,150,255', 0.16 + Math.random() * 0.08); } continue; }
+    if (!lampes) { continue; }
+    if (L.type === 'lampadaire') { lueur(L.x, L.y, L.z, 60, '255,190,110', 0.34 * fli); }
+    else if (L.type === 'lampe_orange') { lueur(L.x, L.y, L.z, 46, '255,140,60', 0.36 * fli); }
+    else if (L.type === 'lampe') { lueur(L.x, L.y, L.z, 34, '255,210,140', 0.26 * fli); }
+    else if (L.type === 'bougie') { lueur(L.x, L.y, L.z, 10 + Math.random() * 3, '255,170,80', 0.5); }
+    else if (L.type === 'cuisine' && P.act === 'cuisine') { lueur(L.x, L.y, L.z, 60, '255,230,170', 0.3); }
   }
-  if (tvOn) { lueurK('salon', 43, 9, 17, 46, '110,150,255', 0.16 + Math.random() * 0.08); }
-  if (P.act === 'lit' && P.pose === 'walk' && (h >= 21 || h < 7)) { lueurK('chambre1', 137, 51, 12, 30, '255,220,140', 0.3); }
   cx.globalCompositeOperation = 'source-over';
   camera();
 

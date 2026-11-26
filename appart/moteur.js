@@ -52,144 +52,209 @@ function couleurSol(sol, x, y) {
   return varie(SOLS[sol], x, y, 0, 2);
 }
 
-/* ---------- kits de meubles (coordonnees d'origine du prototype) ---------- */
+/* ---------- objets (meubles) ----------
+   Chaque objet a une boite x0..x1, y0..y1 (en voxels de 10 cm) et une face : le cote vers lequel il regarde
+   ('+x', '-x', '+y', '-y'). u = largeur, v = profondeur du dos vers l'avant, z = hauteur depuis le sol. */
 var AFFICHE = [[124, 74, 44], [58, 104, 62], [206, 160, 70], [92, 64, 120], [170, 92, 58], [90, 56, 40]];
-var KITS = {
-  salon: { ref: [0, 0, 6], refW: 52, ancreX: 34,
-    decoFond: function (x, z) {
-      if (x >= 19 && x <= 31 && z >= 25 && z <= 32) {
-        if (x === 19 || x === 31 || z === 25 || z === 32) { return [240, 238, 232]; }
-        return AFFICHE[hs(x >> 1, z >> 1, 3) % AFFICHE.length];
+var BRUN = [94, 60, 46], MARBRE = [138, 56, 44], VEINE = [222, 204, 198];
+var INVERSE = { '+x': '-x', '-x': '+x', '+y': '-y', '-y': '+y' };
+function vueCam(dir) { return dir === '+x' || dir === '+y'; }
+
+function cadre(o) {
+  var x0 = Math.min(o.x0, o.x1), x1 = Math.max(o.x0, o.x1), y0 = Math.min(o.y0, o.y1), y1 = Math.max(o.y0, o.y1);
+  var f = o.face || '+y', W, D, at;
+  if (f === '+y') { W = x1 - x0 + 1; D = y1 - y0 + 1; at = function (u, v) { return [x0 + u, y0 + v]; }; }
+  else if (f === '-y') { W = x1 - x0 + 1; D = y1 - y0 + 1; at = function (u, v) { return [x1 - u, y1 - v]; }; }
+  else if (f === '+x') { W = y1 - y0 + 1; D = x1 - x0 + 1; at = function (u, v) { return [x0 + v, y1 - u]; }; }
+  else { W = y1 - y0 + 1; D = x1 - x0 + 1; at = function (u, v) { return [x1 - v, y0 + u]; }; }
+  return { W: W, D: D, at: at, face: f, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+
+var RENDUS = {
+  cheminee: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 4), m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 9, function (u, v, z) {
+      if (v === d - 1) {
+        if (u >= 2 && u <= W - 3 && z <= 6) { return [30, 22, 20]; }
+        if (u >= 1 && u <= W - 2 && z <= 7) { return [236, 231, 226]; }
       }
-      if (x >= 37 && x <= 47 && z >= 23 && z <= 32) {
-        if (x === 37 || x === 47 || z === 23 || z === 32) { return [24, 24, 26]; }
-        if ((z === 29 || z === 30) && x > 39 && x < 45) { return [180, 172, 150]; }
-        return hs(x, z, 9) % 6 === 0 ? [150, 150, 150] : [56, 56, 62];
-      }
-      return null;
-    },
-    meubles: function (k) {
-      var box = k.box, add = k.add, feuillage = k.feuillage;
-      box(2, 1, 6, 2, 1, 24, [236, 236, 236], true); box(8, 1, 6, 8, 1, 24, [236, 236, 236], true);
-      box(2, 5, 6, 2, 5, 24, [236, 236, 236], true); box(8, 5, 6, 8, 5, 24, [236, 236, 236], true);
-      box(2, 1, 10, 8, 5, 10, [208, 184, 144], true); box(2, 1, 16, 8, 5, 16, [208, 184, 144], true);
-      box(2, 1, 21, 8, 5, 21, [208, 184, 144], true); box(2, 1, 24, 8, 5, 24, [208, 184, 144], true);
-      box(4, 2, 25, 6, 4, 27, [196, 104, 52]); feuillage(5, 3, 31, 4, 11);
-      box(7, 3, 22, 7, 3, 23, [200, 40, 50]);
-      box(3, 3, 17, 3, 3, 20, [202, 162, 62]);
-      box(5, 3, 17, 5, 3, 18, [70, 70, 160]); add(5, 3, 19, [236, 236, 230]);
-      box(6, 2, 17, 7, 3, 19, [34, 32, 34]);
-      box(7, 2, 11, 7, 2, 12, [70, 70, 70]); add(7, 3, 13, [236, 228, 200]);
-      box(10, 2, 7, 13, 3, 12, function (x, y, z) { return (x === 10 || x === 13 || z === 7 || z === 12) ? [70, 34, 20] : [214, 140, 40]; }, true);
-      box(11, 2, 13, 12, 2, 21, [52, 36, 26]); box(11, 2, 22, 12, 2, 23, [30, 24, 20]);
-      box(17, 1, 6, 33, 4, 15, function (x, y, z) {
-        if (y === 4) {
-          if (x >= 21 && x <= 29 && z <= 12) { return [30, 22, 20]; }
-          if (x >= 20 && x <= 30 && z <= 13) { return [236, 231, 226]; }
-        }
-        return hs(x, y, z) % 9 === 0 ? [222, 204, 198] : varie([138, 56, 44], x, y, z, 4);
-      }, true);
-      box(16, 1, 16, 34, 5, 16, function (x, y, z) { return hs(x, y, z) % 8 === 0 ? [222, 204, 198] : [150, 64, 50]; }, true);
-      box(17, 5, 6, 33, 6, 6, function (x, y, z) { return hs(x, y, z) % 7 === 0 ? [222, 204, 198] : [128, 52, 42]; });
-      box(24, 3, 6, 26, 3, 7, [120, 78, 44]);
-      box(22, 2, 17, 28, 2, 25, function (x, y, z) { return (x === 22 || x === 28 || z === 17 || z === 25) ? [196, 200, 206] : [150, 166, 178]; });
-      box(31, 3, 17, 31, 3, 18, [240, 232, 206]);
-      box(36, 1, 6, 50, 6, 13, function (x, y, z) {
-        if (y === 6 && z >= 11 && z <= 12 && x > 36 && x < 50) { return hs(x, y, z) % 4 === 0 ? [180, 140, 90] : [20, 15, 14]; }
-        if (y === 6 && (x === 39 || x === 43 || x === 47) && z < 11) { return [26, 20, 18]; }
-        return [44, 33, 30];
-      }, true);
-      box(39, 3, 14, 47, 3, 21, function (x, y, z) { return (x === 39 || x === 47 || z === 14 || z === 21) ? [18, 18, 20] : [0, 0, 0, 3]; });
-      box(48, 3, 14, 49, 4, 16, [36, 30, 30]);
-      box(37, 3, 14, 37, 3, 15, [190, 96, 50]); feuillage(37, 3, 18, 2, 5);
-      box(34, 4, 6, 34, 4, 26, [192, 160, 90], true); box(34, 4, 27, 36, 6, 28, [232, 224, 202]);
-      box(3, 22, 13, 12, 38, 13, [228, 224, 214], true);
-      box(3, 22, 6, 3, 22, 12, [200, 196, 188]); box(12, 22, 6, 12, 22, 12, [200, 196, 188]);
-      box(3, 38, 6, 3, 38, 12, [200, 196, 188]); box(12, 38, 6, 12, 38, 12, [200, 196, 188]);
-      box(5, 26, 14, 9, 30, 14, function (x, y) { return (x + y) % 3 ? [230, 230, 236] : [190, 60, 50]; });
-      box(4, 33, 14, 7, 35, 14, [120, 128, 140]);
-      box(14, 27, 6, 16, 29, 11, function (x, y, z) { return z === 11 ? [236, 236, 230] : ((x === 14 || x === 16) && (y === 27 || y === 29) ? [220, 220, 214] : null); }, true);
-      box(16, 27, 12, 16, 29, 18, function (x, y, z) { return y === 28 && z % 2 ? null : [240, 240, 236]; });
-      box(18, 24, 10, 29, 33, 10, [74, 44, 32], true);
-      box(18, 24, 6, 18, 24, 9, [64, 38, 28]); box(29, 24, 6, 29, 24, 9, [64, 38, 28]);
-      box(18, 33, 6, 18, 33, 9, [64, 38, 28]); box(29, 33, 6, 29, 33, 9, [64, 38, 28]);
-      box(20, 27, 11, 20, 27, 13, [40, 110, 60]); box(22, 26, 11, 22, 26, 14, [40, 110, 60]);
-      box(25, 29, 11, 26, 30, 12, [170, 190, 182]);
-      var BRUN = [94, 60, 46];
-      box(4, 49, 6, 37, 57, 10, function (x, y, z) { if ((x === 4 && y === 49) || (x === 37 && y === 57)) { return null; } return varie(BRUN, x, y, z, 2); }, true);
-      box(4, 56, 11, 37, 58, 15, function (x, y, z) { return varie(z === 15 ? [104, 68, 52] : BRUN, x, y, z, 2); }, true);
-      box(4, 49, 11, 5, 55, 13, function (x, y, z) { return varie(BRUN, x, y, z, 2); }, true);
-      box(30, 36, 6, 37, 48, 10, function (x, y, z) { if ((x === 30 || x === 37) && y === 36) { return null; } return varie(BRUN, x, y, z, 2); }, true);
-      box(31, 40, 11, 36, 46, 11, function (x, y) { return hs(x, y, 4) % 3 ? [158, 152, 146] : null; });
-      box(14, 51, 11, 20, 54, 11, function (x, y) { return hs(x, y, 6) % 4 ? [120, 118, 116] : null; });
-      box(1, 51, 6, 3, 57, 11, [120, 84, 54], true);
-      box(2, 52, 12, 2, 52, 13, [60, 60, 60]); box(1, 51, 14, 3, 53, 16, [232, 122, 40]);
-      feuillage(2, 56, 15, 3, 21);
-    }
+      return hs(u, v, z) % 9 === 0 ? VEINE : varie(MARBRE, u, v, z, 4);
+    }, true);
+    B(-1, 0, 10, W, d, 10, function (u, v, z) { return hs(u, v, z) % 8 === 0 ? VEINE : [150, 64, 50]; }, true);
+    B(-1, d, 0, W, d + 1, 0, function (u, v, z) { return hs(u, v, z) % 7 === 0 ? VEINE : [128, 52, 42]; });
+    B(m - 1, 1, 0, m + 1, 1, 1, [120, 78, 44]);
+    B(m - 3, 1, 11, m + 3, 1, 19, function (u, v, z) { return (u === m - 3 || u === m + 3 || z === 11 || z === 19) ? [196, 200, 206] : [150, 166, 178]; });
+    B(W - 2, 2, 11, W - 2, 2, 12, [240, 232, 206]);
+    B(m + 4, 2, 11, m + 5, 2, 13, [210, 200, 190]);
+    A.lumiere('bougie', W - 2, 2, 14);
+    A.acte('cheminee', m, d + 4, { pose: 'stand' });
   },
-  cuisine: { ref: [52, 0, 1], refW: 28,
-    decoFond: function (x, z) {
-      if (x >= 66 && x <= 79 && z >= 13 && z <= 18) {
-        var zig = 18 - Math.abs(((x - 66) % 6) - 3);
-        if (z === zig || z === zig - 1) { return (x + z) % 2 ? [212, 52, 40] : [242, 192, 44]; }
-        if (z === 13 && x % 3 === 0) { return [232, 182, 40]; }
-      }
-      if (x >= 55 && x <= 58 && z >= 12 && z <= 16) {
-        if (x === 55 || x === 58 || z === 12 || z === 16) { return [205, 42, 46]; }
-        return [242, 206, 64];
-      }
-      return null;
-    },
-    meubles: function (k) {
-      var box = k.box, add = k.add, x;
-      box(53, 1, 1, 79, 6, 8, function (x, y) { return (y === 6 && x % 5 === 0) ? [210, 210, 206] : [236, 236, 232]; }, true);
-      box(53, 1, 9, 79, 6, 9, [196, 196, 192], true);
-      box(60, 3, 10, 61, 4, 11, [228, 110, 30]);
-      box(64, 3, 10, 64, 3, 13, [140, 182, 222]); box(66, 3, 10, 66, 3, 13, [150, 190, 226]);
-      add(58, 3, 10, [240, 236, 226]);
-      box(66, 1, 19, 79, 4, 19, [238, 238, 236]);
-      for (x = 67; x <= 78; x += 2) { box(x, 2, 20, x, 2, 21, [196, 214, 228]); }
-    }
+  meuble_tv: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 5), m = Math.floor(W / 2), B = A.B, tw = Math.min(W - 4, 14), a = m - Math.floor(tw / 2), b = a + tw - 1;
+    B(0, 0, 0, W - 1, d - 1, 7, function (u, v, z) {
+      if (v === d - 1 && z >= 5 && z <= 6 && u > 0 && u < W - 1) { return hs(u, v, z) % 4 === 0 ? [180, 140, 90] : [20, 15, 14]; }
+      if (v === d - 1 && u % 4 === 0 && z < 5) { return [26, 20, 18]; }
+      return [44, 33, 30];
+    }, true);
+    B(a, 2, 8, b, 2, 15, function (u, v, z) { return (u === a || u === b || z === 8 || z === 15) ? [18, 18, 20] : [0, 0, 0, 3]; });
+    B(W - 2, 2, 8, W - 2, 3, 10, [36, 30, 30]);
+    A.lumiere('tv', m, 4, 12);
   },
-  entree: { ref: [52, 30, 1], refW: 28,
-    meubles: function (k) {
-      var box = k.box, add = k.add, x, y, z, s, top;
-      // escalier : 5 marches qui montent vers le salon (cote gauche de l'entree)
-      var M2 = function (xx) { return k.escalierADroite ? 52 + k.largeur - (xx - 52) : xx; };
-      for (x = 52; x <= 61; x++) {
-        s = Math.floor((x - 52) / 2); top = 4 - s;
-        for (y = 44; y <= 58; y++) {
-          k.sol(M2(x), y, top + 1);
-          for (z = 0; z <= top; z++) { k.addAbs(M2(x), y, z, varie(z === top ? PINE : [140, 86, 46], x, y, z, 3), 1); }
-        }
-        k.bloque(M2(x), 59); k.addAbs(M2(x), 59, top + 9, [150, 90, 46]);
-      }
-      for (z = 1; z <= 13; z++) { k.addAbs(M2(61), 59, z, [140, 84, 42]); }
-      for (z = 5; z <= 14; z++) { k.addAbs(M2(52), 59, z, [140, 84, 42]); }
-      box(69, 44, 1, 71, 46, 1, [190, 196, 202], true); box(70, 45, 2, 70, 45, 7, [190, 196, 202]);
-      box(69, 44, 8, 71, 46, 8, [86, 58, 40]); box(70, 46, 4, 71, 47, 9, [26, 26, 30]);
-    }
+  etagere_basse: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 5), m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 6, function (u, v, z) { return (v === d - 1 && (z === 3) ) ? [210, 210, 206] : [236, 236, 234]; }, true);
+    B(0, 0, 7, W - 1, d - 1, 7, [208, 184, 144], true);
+    B(1, 1, 8, 3, 3, 9, [196, 104, 52]); A.feuillage(2, 2, 13, 3, 11);
+    B(m, 2, 8, m, 2, 9, [60, 60, 60]); B(m - 1, 1, 10, m + 1, 3, 12, [236, 228, 200]);
+    A.lumiere('lampe', m, 2, 11);
+    B(m + 3, 1, 8, m + 4, 3, 8, [190, 50, 46]);
+    B(W - 2, 2, 8, W - 2, 2, 11, [202, 162, 62]);
+    B(W - 4, 2, 8, W - 4, 2, 9, [70, 70, 160]); B(W - 4, 2, 10, W - 4, 2, 10, [236, 236, 230]);
+    A.acte('plantes', m, d + 3, { pose: 'stand' });
   },
-  chambre1: { ref: [134, 28, 1], refW: 46, ancreX: 150,
-    meubles: function (k) {
-      var box = k.box;
-      box(135, 44, 1, 139, 58, 9, function (x, y, z) {
-        if (x === 139 && (z === 3 || z === 7) && y % 4 === 2) { return [150, 100, 56]; }
-        if (x === 139 && z === 5) { return [196, 150, 96]; }
-        return varie([216, 172, 112], x, y, z, 3);
-      }, true);
-      box(137, 50, 10, 137, 50, 13, function (x, y, z) { return z === 12 ? [242, 224, 150] : [50, 50, 50]; });
-      box(158, 38, 1, 178, 52, 3, [150, 150, 154], true);
-      box(158, 38, 4, 178, 52, 6, [240, 240, 236], true);
-      box(174, 40, 7, 177, 50, 7, [252, 252, 250], true);
-      box(158, 38, 7, 171, 52, 7, function (x, y) { return hs(x, y, 8) % 5 ? [222, 224, 230] : [206, 208, 216]; });
-      box(160, 42, 8, 168, 48, 8, function (x, y) { return hs(x, y, 2) % 3 ? null : [214, 216, 222]; });
+  lampadaire: function (o, A) {
+    var c = A.cadre, u = Math.floor(c.W / 2), v = Math.floor(c.D / 2), B = A.B;
+    B(u, v, 0, u, v, 21, [192, 160, 90], true); B(u - 1, v - 1, 22, u + 1, v + 1, 23, [232, 224, 202]);
+    A.lumiere('lampadaire', u, v, 22);
+  },
+  lampe_plante: function (o, A) {
+    var c = A.cadre, W = c.W, B = A.B;
+    B(0, 0, 0, 3, 3, 5, [120, 84, 54], true);
+    B(1, 1, 6, 1, 1, 7, [60, 60, 60]); B(0, 0, 8, 2, 2, 10, [232, 122, 40]);
+    A.lumiere('lampe_orange', 1, 1, 9);
+    B(W - 3, 1, 0, W - 2, 2, 3, [196, 104, 52], true); A.feuillage(W - 3, 2, 8, 3, 21);
+  },
+  canape: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, 2, 9, function (u, v, z) { return varie(z === 9 ? [104, 68, 52] : BRUN, u, v, z, 2); }, true);
+    B(0, 3, 0, W - 1, D - 1, 4, function (u, v, z) { if ((u === 0 || u === W - 1) && v === D - 1) { return null; } return varie(BRUN, u, v, z, 2); }, true);
+    B(0, 3, 5, 1, D - 1, 7, function (u, v, z) { return varie(BRUN, u, v, z, 2); }, true);
+    B(W - 2, 3, 5, W - 1, D - 1, 7, function (u, v, z) { return varie(BRUN, u, v, z, 2); }, true);
+    B(3, 3, 5, 8, 6, 5, function (u, v) { return hs(u, v, 6) % 4 ? [120, 118, 116] : null; });
+    A.acte('canape', m, D + 3, { pose: 'sit', sx: m, sy: 4, sz: 6, regarde: c.face });
+  },
+  meridienne: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B;
+    B(0, 0, 0, W - 1, D - 1, 4, function (u, v, z) { if ((u === 0 || u === W - 1) && (v === D - 1)) { return null; } return varie(BRUN, u, v, z, 2); }, true);
+    B(1, 2, 5, W - 2, D - 3, 5, function (u, v) { return hs(u, v, 4) % 3 ? [158, 152, 146] : null; });
+  },
+  table_basse: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B;
+    B(0, 0, 4, W - 1, D - 1, 4, [74, 44, 32], true);
+    B(0, 0, 0, 0, 0, 3, [64, 38, 28]); B(W - 1, 0, 0, W - 1, 0, 3, [64, 38, 28]); B(0, D - 1, 0, 0, D - 1, 3, [64, 38, 28]); B(W - 1, D - 1, 0, W - 1, D - 1, 3, [64, 38, 28]);
+    B(1, 1, 5, 1, 1, 7, [40, 110, 60]); B(3, 2, 5, 3, 2, 8, [40, 110, 60]); B(W - 3, D - 3, 5, W - 2, D - 2, 6, [170, 190, 182]);
+  },
+  table: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 7, W - 1, D - 1, 7, [228, 224, 214], true);
+    B(0, 0, 0, 0, 0, 6, [200, 196, 188]); B(W - 1, 0, 0, W - 1, 0, 6, [200, 196, 188]);
+    B(0, D - 1, 0, 0, D - 1, 6, [200, 196, 188]); B(W - 1, D - 1, 0, W - 1, D - 1, 6, [200, 196, 188]);
+    B(2, 2, 8, 6, 5, 8, function (u, v) { return (u + v) % 3 ? [230, 230, 236] : [190, 60, 50]; });
+    B(W - 6, 2, 8, W - 3, 4, 8, [120, 128, 140]);
+    // chaise blanche devant
+    B(m - 1, D + 1, 0, m + 1, D + 3, 4, function (u, v, z) { return z === 4 ? [236, 236, 230] : ((u === m - 1 || u === m + 1) && (v === D + 1 || v === D + 3) ? [220, 220, 214] : null); }, true);
+    B(m - 1, D + 3, 5, m + 1, D + 3, 11, function (u, v, z) { return u === m && z % 2 ? null : [240, 240, 236]; });
+    A.acte('table', m, D + 6, { pose: 'sit', sx: m, sy: D + 2, sz: 6, regarde: INVERSE[c.face] });
+  },
+  plante: function (o, A) {
+    var c = A.cadre, u = Math.floor(c.W / 2), v = Math.floor(c.D / 2), B = A.B;
+    B(u - 1, v - 1, 0, u + 1, v + 1, 3, [196, 104, 52], true);
+    A.feuillage(u, v, 9, 4, 31); A.feuillage(u + 2, v - 1, 13, 3, 32); A.feuillage(u - 2, v + 1, 12, 3, 33);
+  },
+  escalier: function (o, A) {
+    A.escalier(o);
+  },
+  rambarde: function (o, A) {
+    A.rambarde(o);
+  },
+  chaussures: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 3), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 15, function (u, v, z) { return (v === d - 1 && (z === 5 || z === 10 || u === Math.floor(W / 2))) ? [200, 196, 188] : [236, 234, 228]; }, true);
+  },
+  cuisine_plan: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 6), m = Math.floor(W / 2), B = A.B, u;
+    B(0, 0, 0, W - 1, d - 1, 8, function (u2, v) { return (v === d - 1 && u2 % 5 === 0) ? [210, 210, 206] : [236, 236, 232]; }, true);
+    B(0, 0, 9, W - 1, d - 1, 9, function (u2, v) {
+      if (u2 >= 2 && u2 <= 7 && v >= 1 && v <= d - 2) { return (u2 === 2 || u2 === 7 || v === 1 || v === d - 2) ? [190, 194, 200] : [120, 126, 134]; }
+      if (u2 >= W - 10 && u2 <= W - 3 && v >= 1 && v <= d - 2) { return ((u2 - (W - 10)) % 4 === 1 && (v === 2 || v === d - 3)) ? [150, 60, 50] : [30, 30, 34]; }
+      return [196, 196, 192];
+    }, true);
+    B(4, 0, 10, 5, 0, 12, [180, 184, 190]);
+    B(2, 0, 19, W - 3, 2, 19, [238, 238, 236]);
+    for (u = 3; u <= W - 4; u += 2) { B(u, 1, 20, u, 1, 21, [196, 214, 228]); }
+    for (u = 1; u < W - 1; u++) {
+      var zig = 17 - Math.abs((u % 6) - 3);
+      B(u, 0, zig, u, 0, zig, (u % 2) ? [212, 52, 40] : [242, 192, 44]);
+      if (u % 3 === 0) { B(u, 0, 13, u, 0, 13, [232, 182, 40]); }
     }
+    B(m - 6, 0, 12, m - 3, 0, 16, function (u2, v, z) { return (u2 === m - 6 || u2 === m - 3 || z === 12 || z === 16) ? [205, 42, 46] : [242, 206, 64]; });
+    A.lumiere('cuisine', m, 3, 22);
+    A.vapeur(W - 6, 3, 11);
+    A.acte('cuisine', W - 6, d + 3, { pose: 'stand', regarde: INVERSE[c.face] });
+  },
+  comptoir: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B;
+    B(0, 0, 0, W - 1, D - 1, 8, [236, 236, 232], true);
+    B(0, 0, 9, W - 1, D - 1, 9, [196, 160, 110], true);
+    B(3, 1, 10, 4, 1, 11, [228, 110, 30]); B(7, 1, 10, 7, 1, 13, [140, 182, 222]); B(9, 1, 10, 9, 1, 10, [240, 236, 226]);
+  },
+  placard: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 3), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 22, function (u, v, z) {
+      if (v === d - 1 && u % 8 === 0) { return [204, 200, 192]; }
+      if (v === d - 1 && u % 8 === 6 && z >= 9 && z <= 11) { return [150, 150, 150]; }
+      return [238, 236, 232];
+    }, true);
+  },
+  lit: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, D - 1, 2, [150, 150, 154], true);
+    B(0, 0, 3, W - 1, D - 1, 5, [240, 240, 236], true);
+    B(1, 1, 6, W - 2, 3, 6, [252, 252, 250], true);
+    B(0, 5, 6, W - 1, D - 1, 6, function (u, v) { return hs(u, v, 8) % 5 ? [222, 224, 230] : [206, 208, 216]; });
+    B(2, 7, 7, W - 3, D - 3, 7, function (u, v) { return hs(u, v, 2) % 3 ? null : [214, 216, 222]; });
+    if (o.perso) { A.acte('lit', m, D + 3, { pose: 'sleep', tx: m, ty: 2, tz: 7 }); }
+  },
+  guitare: function (o, A) {
+    var c = A.cadre, u = Math.floor(c.W / 2), B = A.B;
+    B(u - 1, 0, 1, u + 1, 1, 6, function (uu, v, z) { return (uu !== u || z === 1 || z === 6) ? [70, 34, 20] : [214, 140, 40]; }, true);
+    B(u, 0, 7, u, 0, 15, [52, 36, 26]); B(u, 0, 16, u, 0, 17, [30, 24, 20]);
+    A.acte('guitare', u, 4, { pose: 'guitar' });
+  },
+  affiche: function (o, A) {
+    var c = A.cadre, W = c.W, B = A.B, z0 = o.z0 || 18, z1 = o.z1 || 26;
+    B(0, 0, z0, W - 1, 0, z1, function (u, v, z) {
+      if (u === 0 || u === W - 1 || z === z0 || z === z1) { return [240, 238, 232]; }
+      return AFFICHE[hs(u >> 1, z >> 1, 3) % AFFICHE.length];
+    });
   }
 };
 
 /* ---------- construction ---------- */
+function vue180(plan) {
+  var q = JSON.parse(JSON.stringify(plan)), MX = 0, MY = 0, i, j, p, o, L, CO = { fond: 'avant', avant: 'fond', gauche: 'droite', droite: 'gauche' };
+  for (i = 0; i < q.pieces.length; i++) { MX = Math.max(MX, q.pieces[i].x1); MY = Math.max(MY, q.pieces[i].y1); }
+  for (i = 0; i < q.pieces.length; i++) {
+    p = q.pieces[i];
+    var x0 = MX - p.x1, x1 = MX - p.x0, y0 = MY - p.y1, y1 = MY - p.y0;
+    p.x0 = x0; p.x1 = x1; p.y0 = y0; p.y1 = y1;
+    for (j = 0; j < (p.ouvertures || []).length; j++) {
+      o = p.ouvertures[j]; L = (o.cote === 'fond' || o.cote === 'avant') ? p.x1 - p.x0 : p.y1 - p.y0;
+      o.cote = CO[o.cote]; o.debut = L - o.debut - o.long;
+    }
+  }
+  for (i = 0; i < (q.objets || []).length; i++) {
+    o = q.objets[i];
+    if (o.x0 !== undefined) { var a = MX - o.x1, b = MX - o.x0, c = MY - o.y1, d = MY - o.y0; o.x0 = a; o.x1 = b; o.y0 = c; o.y1 = d; }
+    if (o.face) { o.face = INVERSE[o.face]; }
+    if (o.monte) { o.monte = INVERSE[o.monte]; }
+    if (o.pts) { for (j = 0; j < o.pts.length; j++) { o.pts[j] = [MX - o.pts[j][0], MY - o.pts[j][1]]; } }
+  }
+  return q;
+}
+
 function construire(plan) {
+  if (plan.vue === 180) { plan = vue180(plan); }
   var pieces = plan.pieces, i, j, p;
   var SX = 2, SY = 2;
   for (i = 0; i < pieces.length; i++) { SX = Math.max(SX, pieces[i].x1 + 1); SY = Math.max(SY, pieces[i].y1 + 1); }
@@ -254,7 +319,7 @@ function construire(plan) {
   for (i = 0; i < N; i++) {
     if (mur[i] && porte[i]) {
       x = i % SX; y = (i - x) / SX;
-      var lv = solVoisin(x, y, 'min');
+      var lv = solVoisin(x, y, 'max');
       if (lv > 0) { mur[i] = 0; fl[i] = lv; piece[i] = -2; }
     }
   }
@@ -284,52 +349,101 @@ function construire(plan) {
   var fermes = [];
   for (i = 0; i < pieces.length; i++) { if (pieces[i].ferme) { fermes.push(pieces[i]); } }
 
-  // 5. kits de meubles (apres les sols, avant les murs pour l'escalier)
-  var kitsPoses = [];
-  for (i = 0; i < pieces.length; i++) {
-    p = pieces[i];
-    if (!p.kit || !KITS[p.kit] || p.ferme) { continue; }
-    kitsPoses.push({ p: p, k: KITS[p.kit] });
-  }
-  var surSol = {};
-  function ctxKit(p, kit) {
-    var r = kit.ref, dw = kit.refW ? (p.x1 - p.x0) - kit.refW : 0;
-    function T(x, y) { var ax = (kit.ancreX !== undefined && x >= kit.ancreX) ? dw : 0; return [p.x0 + (x - r[0]) + ax, p.y0 + (y - r[1])]; }
-    function TZ(z) { return p.niveau + (z - r[2]); }
-    var aDroite = false, q3;
-    for (q3 = 0; q3 < pieces.length; q3++) { if (pieces[q3].niveau > p.niveau && pieces[q3].x0 === p.x1 && pieces[q3].y0 < p.y1 && pieces[q3].y1 > p.y0) { aDroite = true; } }
-    return {
-      largeur: p.x1 - p.x0, escalierADroite: aDroite,
-      box: function (x0, y0, z0, x1, y1, z1, c, block) {
-        var xx, yy, zz, t, cc;
-        for (xx = x0; xx <= x1; xx++) {
-          for (yy = y0; yy <= y1; yy++) {
-            t = T(xx, yy);
-            if (!dedans(t[0], t[1])) { continue; }
-            for (zz = z0; zz <= z1; zz++) { cc = typeof c === 'function' ? c(xx, yy, zz) : c; add(t[0], t[1], TZ(zz), cc); }
-            if (block) { occ[I(t[0], t[1])] = 1; }
+  // 5. objets
+  var actes = {}, lumieres = [], vapeur = null, surSol = {}, jours = [];
+  function niveauA(x, y) { if (!dedans(x, y)) { return 1; } var f = fl[I(x, y)]; return f > 0 ? f : 1; }
+  function poserObjet(o) {
+    var R = RENDUS[o.type];
+    if (!R) { return; }
+    var cd = o.x0 !== undefined ? cadre(o) : null;
+    var b0 = cd ? niveauA(Math.round(cd.cx), Math.round(cd.cy)) : 1;
+    var zCoupe = (cd && o.face && !vueCam(cd.face)) ? 9 : 99;   // dos tourne vers la camera : coupe comme les murs
+    var A = {
+      cadre: cd,
+      B: function (u0, v0, z0, u1, v1, z1, col, block) {
+        var u, v, z, p2, cc;
+        for (u = u0; u <= u1; u++) {
+          for (v = v0; v <= v1; v++) {
+            p2 = cd.at(u, v);
+            if (!dedans(p2[0], p2[1])) { continue; }
+            for (z = z0; z <= Math.min(z1, zCoupe); z++) { cc = typeof col === 'function' ? col(u, v, z) : col; add(p2[0], p2[1], b0 + z, cc); }
+            if (block) { occ[I(p2[0], p2[1])] = 1; }
           }
         }
       },
-      add: function (x, y, z, c) { var t = T(x, y); add(t[0], t[1], TZ(z), c); },
-      addAbs: function (x, y, z, c, ty) { var t = T(x, y); add(t[0], t[1], z, c, ty); },
-      sol: function (x, y, niv) { var t = T(x, y); if (dedans(t[0], t[1])) { fl[I(t[0], t[1])] = niv; mur[I(t[0], t[1])] = 0; occ[I(t[0], t[1])] = 0; surSol[I(t[0], t[1])] = 1; } },
-      bloque: function (x, y) { var t = T(x, y); if (dedans(t[0], t[1])) { occ[I(t[0], t[1])] = 1; } },
-      feuillage: function (cx0, cy0, cz0, rr, seed) {
-        var xx, yy, zz, d, h, t;
-        for (xx = cx0 - rr; xx <= cx0 + rr; xx++) {
-          for (yy = cy0 - rr; yy <= cy0 + rr; yy++) {
-            for (zz = cz0 - rr; zz <= cz0 + rr; zz++) {
-              d = (xx - cx0) * (xx - cx0) + (yy - cy0) * (yy - cy0) + (zz - cz0) * (zz - cz0) * 0.8;
-              h = hs(xx, yy, zz + seed);
-              if (d <= rr * rr && h % 3 !== 0) { t = T(xx, yy); add(t[0], t[1], TZ(zz), [52 + h % 30, 112 + h % 40, 46 + h % 20]); }
+      feuillage: function (u0, v0, zc, r, seed) {
+        var du, dv, dz, dd, h, p2;
+        for (du = -r; du <= r; du++) {
+          for (dv = -r; dv <= r; dv++) {
+            for (dz = -r; dz <= r; dz++) {
+              dd = du * du + dv * dv + dz * dz * 0.8; h = hs(u0 + du + seed, v0 + dv, zc + dz);
+              if (dd <= r * r && h % 3 !== 0) { p2 = cd.at(u0 + du, v0 + dv); add(p2[0], p2[1], b0 + zc + dz, [52 + h % 30, 112 + h % 40, 46 + h % 20]); }
             }
           }
         }
+      },
+      lumiere: function (type, u, v, z) { var p2 = cd.at(u, v); lumieres.push({ type: type, x: p2[0], y: p2[1], z: b0 + z }); },
+      vapeur: function (u, v, z) { var p2 = cd.at(u, v); vapeur = { x: p2[0], y: p2[1], z: b0 + z }; },
+      acte: function (nom, u, v, op) {
+        if (actes[nom]) { return; }
+        var p2 = cd.at(u, v), a = { ax: p2[0] + 0.5, ay: p2[1] + 0.5, pose: op.pose };
+        var reg = op.regarde || INVERSE[cd.face];
+        a.dos = op.pose === 'guitar' ? false : !vueCam(reg);
+        if (op.sx !== undefined) { var q2 = cd.at(op.sx, op.sy); a.sx = q2[0] + 0.5; a.sy = q2[1] + 0.5; a.sz = b0 + op.sz; }
+        if (op.tx !== undefined) { var t2 = cd.at(op.tx, op.ty); a.tx = t2[0] + 0.5; a.ty = t2[1] + 0.5; a.tz = b0 + op.tz; }
+        actes[nom] = a;
+      },
+      escalier: function (o2) {
+        var x0 = Math.min(o2.x0, o2.x1), x1 = Math.max(o2.x0, o2.x1), y0 = Math.min(o2.y0, o2.y1), y1 = Math.max(o2.y0, o2.y1);
+        var dir = o2.monte || '+x', axeX = dir.charAt(1) === 'x', pos = dir.charAt(0) === '+';
+        var len = axeX ? x1 - x0 + 1 : y1 - y0 + 1, xx, yy, pr, bas, haut, n, niv, zz;
+        if (axeX) { bas = niveauA(pos ? x0 - 1 : x1 + 1, Math.round((y0 + y1) / 2)); haut = niveauA(pos ? x1 + 1 : x0 - 1, Math.round((y0 + y1) / 2)); }
+        else { bas = niveauA(Math.round((x0 + x1) / 2), pos ? y0 - 1 : y1 + 1); haut = niveauA(Math.round((x0 + x1) / 2), pos ? y1 + 1 : y0 - 1); }
+        n = Math.max(0, haut - bas - 1);
+        for (xx = x0; xx <= x1; xx++) {
+          for (yy = y0; yy <= y1; yy++) {
+            if (!dedans(xx, yy)) { continue; }
+            pr = axeX ? (pos ? xx - x0 : x1 - xx) : (pos ? yy - y0 : y1 - yy);
+            niv = bas + 1 + Math.floor(pr * n / len);
+            if (n === 0) { niv = bas; }
+            fl[I(xx, yy)] = niv; mur[I(xx, yy)] = 0; occ[I(xx, yy)] = 0; surSol[I(xx, yy)] = 1;
+            for (zz = 0; zz < niv; zz++) { add(xx, yy, zz, varie(zz === niv - 1 ? PINE : [140, 86, 46], xx, yy, zz, 3), 1); }
+          }
+        }
+      },
+      rambarde: function (o2) {
+        var pts = o2.pts || [], cells = [], vu = {}, k2, a2, b2, st, t, cx2, cy2, key;
+        for (k2 = 0; k2 < pts.length - 1; k2++) {
+          a2 = pts[k2]; b2 = pts[k2 + 1]; st = Math.max(1, Math.ceil(Math.max(Math.abs(b2[0] - a2[0]), Math.abs(b2[1] - a2[1]))));
+          for (t = 0; t <= st; t++) {
+            cx2 = Math.round(a2[0] + (b2[0] - a2[0]) * t / st); cy2 = Math.round(a2[1] + (b2[1] - a2[1]) * t / st); key = cx2 + ',' + cy2;
+            if (!vu[key]) { vu[key] = 1; cells.push([cx2, cy2]); }
+          }
+        }
+        for (k2 = 0; k2 < cells.length; k2++) {
+          var cx3 = cells[k2][0], cy3 = cells[k2][1], bb = niveauA(cx3, cy3), z3;
+          if (!dedans(cx3, cy3)) { continue; }
+          occ[I(cx3, cy3)] = 1;
+          if (k2 % 2 === 0) { for (z3 = bb; z3 < bb + 9; z3++) { add(cx3, cy3, z3, k2 % 6 === 0 ? [140, 84, 42] : [160, 100, 54]); } }
+          add(cx3, cy3, bb + 9, [150, 90, 46]);
+        }
       }
     };
+    R(o, A);
   }
-  for (i = 0; i < kitsPoses.length; i++) { kitsPoses[i].k.meubles(ctxKit(kitsPoses[i].p, kitsPoses[i].k)); }
+  var objets = plan.objets || [];
+  for (i = 0; i < objets.length; i++) { poserObjet(objets[i]); }
+  // lumiere du jour devant chaque fenetre
+  for (i = 0; i < pieces.length; i++) {
+    p = pieces[i];
+    for (j = 0; j < (p.ouvertures || []).length; j++) {
+      var ow = p.ouvertures[j]; if (ow.type !== 'fenetre') { continue; }
+      var mil = ow.debut + ow.long / 2, jx, jy;
+      if (ow.cote === 'fond') { jx = p.x0 + mil; jy = p.y0 + 8; } else if (ow.cote === 'avant') { jx = p.x0 + mil; jy = p.y1 - 8; }
+      else if (ow.cote === 'gauche') { jx = p.x0 + 8; jy = p.y0 + mil; } else { jx = p.x1 - 8; jy = p.y0 + mil; }
+      jours.push({ x: jx, y: jy, z: p.niveau, arriere: ow.cote === 'fond' || ow.cote === 'gauche' });
+    }
+  }
 
   // sols (sauf cases deja posees par un kit, ex. escalier)
   for (i = 0; i < N; i++) {
@@ -358,17 +472,7 @@ function construire(plan) {
     for (k4 = 0; k4 < 4; k4++) { if (dedans(x + vv[k4][0], y + vv[k4][1]) && mur[I(x + vv[k4][0], y + vv[k4][1])]) { m = Math.max(m, hMur[I(x + vv[k4][0], y + vv[k4][1])]); } }
     hMur[i] = m;
   }
-  function decoMur(x, y, z) {
-    var k5, kp, p2, r, base2 = 0;
-    for (k5 = 0; k5 < kitsPoses.length; k5++) {
-      kp = kitsPoses[k5]; p2 = kp.p; r = kp.k.ref;
-      if (kp.k.decoFond && y === p2.y0 && x > p2.x0 && x < p2.x1) {
-        var c = kp.k.decoFond(x - p2.x0 + r[0], z - p2.niveau + r[2]);
-        if (c) { return c; }
-      }
-    }
-    return null;
-  }
+  function decoMur() { return null; }
   function niveauFenetre(x, y) {
     var a = Math.max(solInt(x + 1, y), solInt(x, y + 1), solInt(x - 1, y), solInt(x, y - 1));
     return a > 0 ? a : 1;
@@ -453,24 +557,14 @@ function construire(plan) {
     }
   }
 
-  // reperes des kits -> coordonnees du monde
-  var reperes = {};
-  for (i = 0; i < kitsPoses.length; i++) { reperes[kitsPoses[i].p.kit] = { p: kitsPoses[i].p, ref: kitsPoses[i].k.ref }; }
-  function versMonde(kit, x, y, z) {
-    var R = reperes[kit];
-    if (!R) { return null; }
-    var K2 = KITS[kit], ax = (K2.ancreX !== undefined && x >= K2.ancreX && K2.refW) ? (R.p.x1 - R.p.x0) - K2.refW : 0;
-    return [R.p.x0 + (x - R.ref[0]) + ax, R.p.y0 + (y - R.ref[1]), z === undefined ? undefined : R.p.niveau + (z - R.ref[2])];
-  }
-
   return {
     W: W, H: H, OX: OX, OY: OY, SX: SX, SY: SY,
     base: base, depth: depth, winPx: winPx, tvPx: tvPx,
     fl: fl, occ: occ, CW: CW, CH: CH, cwalk: cwalk, cht: cht,
-    versMonde: versMonde,
+    actes: actes, lumieres: lumieres, vapeur: vapeur, jours: jours,
     proj: function (x2, y2, z2) { return [OX + 2 * (x2 - y2) + 2, OY + x2 + y2 - 2 * z2 + 1]; }
   };
 }
 
-return { construire: construire, PLAN_DEFAUT: PLAN_DEFAUT, pack: pack, hs: hs, KITS: KITS };
+return { construire: construire, PLAN_DEFAUT: PLAN_DEFAUT, pack: pack, hs: hs, RENDUS: RENDUS };
 })();
