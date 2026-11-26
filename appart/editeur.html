@@ -45,6 +45,8 @@
   <button data-outil="n_texte">✎ Texte</button>
   <span class="sep"></span>
   <button id="ajout">+ Pièce</button>
+  <select id="ajoutObj" style="width:auto;padding:7px 10px;border-radius:8px"><option value="">+ Objet…</option></select>
+  <button id="voirNotes">Annotations : visibles</button>
   <button id="annuler">Annuler</button>
   <button id="reinit">Réinitialiser</button>
   <span class="sep"></span>
@@ -55,7 +57,7 @@
 <main>
   <div>
     <div class="zone"><h2>Plan vu de dessus · 1 case = 1 m</h2><canvas id="plan"></canvas>
-      <div class="aide" id="aideOutil">Clique une pièce pour la choisir. Glisse-la pour la déplacer, ou tire un de ses bords pour l'agrandir.</div>
+      <div class="aide" id="aideOutil">Clique une pièce ou un meuble pour le choisir. Glisse-le pour le déplacer, tire un bord pour l'agrandir, ou utilise les flèches du clavier.</div>
     </div>
     <div class="zone" style="margin-top:16px"><h2>Aperçu pixel art (se met à jour tout seul)</h2><canvas id="apercu"></canvas></div>
   </div>
@@ -71,7 +73,7 @@ var cvA = document.getElementById('apercu'), cA = cvA.getContext('2d');
 var panneau = document.getElementById('panneau');
 var S = 5, MARGE = 6;                     // pixels par voxel sur le plan
 var AIDES = {
-  select: "Clique une pièce pour la choisir. Glisse-la pour la déplacer, ou tire un de ses bords pour l'agrandir.",
+  select: "Clique une pièce ou un meuble pour le choisir. Glisse-le pour le déplacer, tire un bord pour l'agrandir, ou utilise les flèches du clavier.",
   porte: "Clique sur un mur de la pièce choisie pour y percer une porte.",
   fenetre: "Clique sur un mur de la pièce choisie pour y ajouter une fenêtre. Elles se voient sur les murs du fond.",
   gomme: "Clique sur une porte, une fenêtre ou une annotation pour l'enlever.",
@@ -79,6 +81,19 @@ var AIDES = {
   n_trait: "Dessine librement à la souris (rambarde, contour d'un meuble...), puis ajoute un nom si tu veux.",
   n_texte: "Clique à un endroit du plan et écris ta note."
 };
+var CATALOGUE = {
+  canape: ['Canapé', 22, 9], meridienne: ['Méridienne', 11, 8], table: ['Table + chaise', 25, 10], table_basse: ['Table basse', 7, 6],
+  cheminee: ['Cheminée', 13, 4], meuble_tv: ['Meuble TV', 16, 5], etagere_basse: ['Petit meuble (plante, lampe…)', 12, 5],
+  lampadaire: ['Lampe haute', 3, 3], lampe_plante: ['Lampe + plante', 9, 4], plante: ['Plante', 5, 5], guitare: ['Guitare', 4, 2],
+  affiche: ['Affiche murale', 10, 1], lit: ['Lit', 16, 20], dressing: ['Dressing', 26, 6], bureau_tv: ['Bureau + télé', 16, 7],
+  bibliotheque: ['Bibliothèque', 9, 3], frigo: ['Frigo', 7, 7], lave_linge: ['Machine à laver', 7, 6], cuisine_plan: ['Évier + plaques', 22, 6],
+  comptoir: ['Comptoir / bar', 20, 3], etagere_bar: ['Structure au-dessus du bar', 20, 1], tabouret: ['Tabouret', 3, 3],
+  chaussures: ['Meuble à chaussures', 7, 3], placard: ['Placard', 30, 3], wc: ['WC', 6, 6], douche: ['Douche', 10, 10], lavabo: ['Lavabo', 6, 5],
+  escalier: ['Escalier', 9, 6], rambarde: ['Rambarde', 20, 0]
+};
+var FACES = { '+y': 'vers le bas du plan', '-y': 'vers le haut du plan', '+x': 'vers la droite', '-x': 'vers la gauche' };
+var TOURNE = { '+y': '-x', '-x': '-y', '-y': '+x', '+x': '+y' };
+var selObj = -1, notesVisibles = true;
 var COTES = { fond: 'mur du fond', avant: 'mur de devant', gauche: 'mur de gauche', droite: 'mur de droite' };
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -160,7 +175,7 @@ function dessinerPlan() {
     cP.setLineDash([]);
   }
   dessinerObjets(cP, plan.objets || []);
-  dessinerNotes(cP, plan.notes || []);
+  if (notesVisibles) { dessinerNotes(cP, plan.notes || []); }
   if (notePrev) { dessinerNotes(cP, [notePrev]); }
   cP.fillStyle = '#8d879b'; cP.font = '11px -apple-system, Segoe UI, sans-serif'; cP.textAlign = 'left';
   cP.fillText('Fond (murs hauts) en haut et à gauche · 1 case = 1 m', 8, H - 8);
@@ -174,11 +189,21 @@ function dessinerObjets(c, objs) {
     if (o.pts) {
       c.beginPath(); c.moveTo(X(o.pts[0][0]), Y(o.pts[0][1]));
       for (j = 1; j < o.pts.length; j++) { c.lineTo(X(o.pts[j][0]), Y(o.pts[j][1])); }
-      c.lineWidth = 3; c.stroke(); continue;
+      c.lineWidth = 3; if (i === selObj) { c.strokeStyle = '#e0a040'; c.lineWidth = 4; } c.stroke(); continue;
     }
     var x0 = Math.min(o.x0, o.x1), y0 = Math.min(o.y0, o.y1), w = (Math.abs(o.x1 - o.x0) + 1) * S, h = (Math.abs(o.y1 - o.y0) + 1) * S;
+    if (i === selObj) { c.fillStyle = 'rgba(224,160,64,0.35)'; c.strokeStyle = '#e0a040'; c.lineWidth = 2.5; }
     c.fillRect(X(x0), Y(y0), w, h); c.strokeRect(X(x0), Y(y0), w, h);
-    if (w > 34 && h > 12) { c.fillStyle = '#e9dcc0'; c.font = '10px -apple-system, Segoe UI, sans-serif'; c.textAlign = 'center'; c.fillText((o.nom || o.type).split(' (')[0], X(x0) + w / 2, Y(y0) + h / 2 + 3); }
+    var dir = o.face || o.monte;
+    if (dir) {
+      var mx = X(x0) + w / 2, my = Y(y0) + h / 2, ax = dir === '+x' ? 1 : (dir === '-x' ? -1 : 0), ay = dir === '+y' ? 1 : (dir === '-y' ? -1 : 0);
+      var L = Math.max(6, Math.min(w, h) / 2 - 2), ex = mx + ax * L, ey = my + ay * L;
+      c.strokeStyle = i === selObj ? '#e0a040' : '#e9dcc0'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(mx, my); c.lineTo(ex, ey); c.stroke();
+      c.beginPath(); c.moveTo(ex, ey); c.lineTo(ex - ax * 4 - ay * 3, ey - ay * 4 - ax * 3); c.moveTo(ex, ey); c.lineTo(ex - ax * 4 + ay * 3, ey - ay * 4 + ax * 3); c.stroke();
+    }
+    c.fillStyle = 'rgba(201,180,138,0.22)';
+    if ((w > 34 && h > 12) || i === selObj) { c.fillStyle = '#e9dcc0'; c.font = '10px -apple-system, Segoe UI, sans-serif'; c.textAlign = 'center'; c.fillText((o.nom || o.type).split(' (')[0], X(x0) + w / 2, Y(y0) + h / 2 + 3); }
   }
 }
 function dessinerNotes(c, notes) {
@@ -219,6 +244,37 @@ function noteSous(g) {
     if (n.t === 'texte' && Math.abs(g.x - n.x) < 2 && Math.abs(g.y - n.y) < 2) { return i; }
   }
   return -1;
+}
+function objetSous(g) {
+  var objs = plan.objets || [], i, o, j;
+  for (i = objs.length - 1; i >= 0; i--) {
+    o = objs[i];
+    if (o.pts) { for (j = 0; j < o.pts.length - 1; j++) { if (presSegment(g, o.pts[j], o.pts[j + 1]) < 1.5) { return i; } } continue; }
+    if (g.x >= Math.min(o.x0, o.x1) - 0.3 && g.x <= Math.max(o.x0, o.x1) + 1.3 && g.y >= Math.min(o.y0, o.y1) - 0.3 && g.y <= Math.max(o.y0, o.y1) + 1.3) { return i; }
+  }
+  return -1;
+}
+function presSegment(g, a, b) {
+  var dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy, t = l ? ((g.x - a[0]) * dx + (g.y - a[1]) * dy) / l : 0;
+  t = Math.max(0, Math.min(1, t)); var px = a[0] + t * dx - g.x, py = a[1] + t * dy - g.y; return Math.sqrt(px * px + py * py);
+}
+function deplacerObjet(o, dx, dy, ref) {
+  var j;
+  if (o.pts) { for (j = 0; j < o.pts.length; j++) { o.pts[j] = [ref.pts[j][0] + dx, ref.pts[j][1] + dy]; } return; }
+  o.x0 = ref.x0 + dx; o.x1 = ref.x1 + dx; o.y0 = ref.y0 + dy; o.y1 = ref.y1 + dy;
+}
+function tournerObjet(o) {
+  var j, cx, cy;
+  if (o.pts) {
+    cx = 0; cy = 0; for (j = 0; j < o.pts.length; j++) { cx += o.pts[j][0]; cy += o.pts[j][1]; } cx /= o.pts.length; cy /= o.pts.length;
+    for (j = 0; j < o.pts.length; j++) { var px = o.pts[j][0] - cx, py = o.pts[j][1] - cy; o.pts[j] = [Math.round(cx - py), Math.round(cy + px)]; }
+    return;
+  }
+  var x0 = Math.min(o.x0, o.x1), x1 = Math.max(o.x0, o.x1), y0 = Math.min(o.y0, o.y1), y1 = Math.max(o.y0, o.y1), w = x1 - x0, h = y1 - y0;
+  cx = (x0 + x1) / 2; cy = (y0 + y1) / 2;
+  o.x0 = Math.round(cx - h / 2); o.x1 = o.x0 + h; o.y0 = Math.round(cy - w / 2); o.y1 = o.y0 + w;
+  if (o.face) { o.face = TOURNE[o.face]; }
+  if (o.monte) { o.monte = TOURNE[o.monte]; }
 }
 function arr1(v) { return Math.round(v * 2) / 2; }
 function X(v) { return (v + MARGE / 2) * S; }
@@ -293,6 +349,22 @@ cvP.addEventListener('pointerdown', function (ev) {
     change(); msg((outil === 'porte' ? 'Porte' : 'Fenêtre') + ' ajoutée sur le ' + COTES[cote]);
     return;
   }
+  // objets : poignees de l'objet choisi, puis clic sur un objet
+  if (selObj >= 0 && plan.objets[selObj] && !plan.objets[selObj].pts) {
+    var ob = plan.objets[selObj], ox0 = Math.min(ob.x0, ob.x1), ox1 = Math.max(ob.x0, ob.x1) + 1, oy0 = Math.min(ob.y0, ob.y1), oy1 = Math.max(ob.y0, ob.y1) + 1, tl = 1.1, ex = null, ey = null;
+    if (g.y >= oy0 - tl && g.y <= oy1 + tl) { if (Math.abs(g.x - ox0) < tl) { ex = 'x0'; } else if (Math.abs(g.x - ox1) < tl) { ex = 'x1'; } }
+    if (g.x >= ox0 - tl && g.x <= ox1 + tl) { if (Math.abs(g.y - oy0) < tl) { ey = 'y0'; } else if (Math.abs(g.y - oy1) < tl) { ey = 'y1'; } }
+    if (ex || ey) {
+      ob.x0 = ox0; ob.x1 = ox1 - 1; ob.y0 = oy0; ob.y1 = oy1 - 1;
+      memo(); glisse = { g0: g, o0: clone(ob), obord: { x: ex, y: ey }, bouge: false, obj: true }; cvP.setPointerCapture(ev.pointerId); return;
+    }
+  }
+  var oi = objetSous(g);
+  if (oi >= 0) {
+    selObj = oi; sel = -1; afficherPanneau(); dessinerPlan();
+    memo(); glisse = { g0: g, o0: clone(plan.objets[oi]), bouge: false, obj: true }; cvP.setPointerCapture(ev.pointerId); return;
+  }
+  if (selObj >= 0) { selObj = -1; }
   // selection / deplacement / redimension
   var bord = null;
   if (sel >= 0) {
@@ -317,7 +389,8 @@ cvP.addEventListener('pointermove', function (ev) {
   }
   if (!glisse) {
     var c = 'default';
-    if (outil === 'select' && sel >= 0) {
+    if (outil === 'select' && objetSous(g) >= 0) { c = 'move'; }
+    else if (outil === 'select' && sel >= 0) {
       var p = plan.pieces[sel], t = 1.6;
       var hx = g.y >= p.y0 - t && g.y <= p.y1 + t && (Math.abs(g.x - p.x0) < t || Math.abs(g.x - p.x1) < t);
       var hy = g.x >= p.x0 - t && g.x <= p.x1 + t && (Math.abs(g.y - p.y0) < t || Math.abs(g.y - p.y1) < t);
@@ -326,7 +399,20 @@ cvP.addEventListener('pointermove', function (ev) {
     cvP.style.cursor = c;
     return;
   }
-  var dx = Math.round(g.x - glisse.g0.x), dy = Math.round(g.y - glisse.g0.y), q = plan.pieces[sel], o = glisse.p0;
+  var dx = Math.round(g.x - glisse.g0.x), dy = Math.round(g.y - glisse.g0.y);
+  if (glisse.obj) {
+    if (!dx && !dy && !glisse.bouge) { return; }
+    glisse.bouge = true;
+    var oo = plan.objets[selObj], r0 = glisse.o0;
+    if (glisse.obord) {
+      if (glisse.obord.x === 'x0') { oo.x0 = Math.min(r0.x1, r0.x0 + dx); }
+      if (glisse.obord.x === 'x1') { oo.x1 = Math.max(r0.x0, r0.x1 + dx); }
+      if (glisse.obord.y === 'y0') { oo.y0 = Math.min(r0.y1, r0.y0 + dy); }
+      if (glisse.obord.y === 'y1') { oo.y1 = Math.max(r0.y0, r0.y1 + dy); }
+    } else { deplacerObjet(oo, dx, dy, r0); }
+    dessinerPlan(); apercuBientot(); return;
+  }
+  var q = plan.pieces[sel], o = glisse.p0;
   if (!dx && !dy && !glisse.bouge) { return; }
   glisse.bouge = true;
   if (glisse.bord) {
@@ -352,11 +438,39 @@ cvP.addEventListener('pointerup', function () {
   }
   if (glisse && !glisse.bouge) { histo.pop(); }
   if (glisse && glisse.bouge) { change(); }
+  else if (glisse && glisse.obj) { afficherPanneau(); }
   glisse = null;
 });
 
 /* ---------- panneau ---------- */
+function panneauObjet() {
+  var o = plan.objets[selObj], cat = CATALOGUE[o.type] || [o.type], h, f;
+  h = '<h2>Objet choisi</h2><p style="margin:0 0 6px;font-weight:600">' + esc(cat[0]) + '</p>' +
+    '<label>Nom</label><input type="text" id="o_nom" value="' + esc(o.nom || '') + '">';
+  if (!o.pts) {
+    h += '<p class="aide">Taille : ' + m2(Math.abs(o.x1 - o.x0) + 1) + ' × ' + m2(Math.abs(o.y1 - o.y0) + 1) + ' m. Tire un bord sur le plan pour la changer.</p>';
+    if (o.face || o.monte) {
+      var cle = o.face ? 'face' : 'monte';
+      h += '<label>' + (o.face ? 'Le devant regarde' : 'L\u2019escalier monte') + '</label><select id="o_face">';
+      for (f in FACES) { h += '<option value="' + f + '"' + (o[cle] === f ? ' selected' : '') + '>' + FACES[f] + '</option>'; }
+      h += '</select>';
+    }
+  }
+  if (o.type === 'lit') { h += '<label><input type="checkbox" id="o_perso"' + (o.perso ? ' checked' : '') + '> C\u2019est mon lit (le perso y dort)</label>'; }
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px"><button id="o_tourner">Tourner ↻</button><button id="o_dup">Dupliquer</button><button id="o_suppr">Supprimer</button></div>' +
+    '<p class="aide">Glisse l\u2019objet pour le déplacer. Flèches du clavier : 10 cm (Maj + flèche : 50 cm). Touche Suppr pour l\u2019enlever. La flèche sur le plan montre le devant.</p>';
+  panneau.innerHTML = h;
+  document.getElementById('o_nom').onchange = function () { memo(); o.nom = this.value; change(); };
+  var fs = document.getElementById('o_face');
+  if (fs) { fs.onchange = function () { memo(); if (o.face) { o.face = this.value; } else { o.monte = this.value; } change(); }; }
+  var pc = document.getElementById('o_perso');
+  if (pc) { pc.onchange = function () { memo(); var j; if (this.checked) { for (j = 0; j < plan.objets.length; j++) { if (plan.objets[j].type === 'lit') { delete plan.objets[j].perso; } } o.perso = true; } else { delete o.perso; } change(); }; }
+  document.getElementById('o_tourner').onclick = function () { memo(); tournerObjet(o); change(); };
+  document.getElementById('o_dup').onclick = function () { memo(); var c2 = clone(o); deplacerObjet(c2, 3, 3, clone(o)); delete c2.perso; plan.objets.push(c2); selObj = plan.objets.length - 1; change(); };
+  document.getElementById('o_suppr').onclick = function () { memo(); plan.objets.splice(selObj, 1); selObj = -1; change(); };
+}
 function afficherPanneau(seulementChiffres) {
+  if (selObj >= 0 && plan.objets && plan.objets[selObj]) { if (!seulementChiffres) { panneauObjet(); } return; }
   if (sel < 0 || !plan.pieces[sel]) {
     var notes = plan.notes || [], lst = '';
     notes.forEach(function (n, i) { lst += '<div class="ouv"><span>' + (n.t === 'rect' ? 'Cadre' : (n.t === 'trait' ? 'Dessin' : 'Texte')) + (n.texte ? ' · ' + esc(n.texte) : '') + '</span><span><button data-nr="' + i + '">Renommer</button> <button data-nx="' + i + '">Enlever</button></span></div>'; });
@@ -437,7 +551,7 @@ for (k = 0; k < bo.length; k++) {
     outil = this.getAttribute('data-outil');
     for (var n = 0; n < bo.length; n++) { bo[n].className = bo[n] === this ? 'on' : ''; }
     document.getElementById('aideOutil').textContent = AIDES[outil];
-    if (outil.indexOf('n_') === 0) { sel = -1; afficherPanneau(); dessinerPlan(); }
+    if (outil.indexOf('n_') === 0) { sel = -1; selObj = -1; afficherPanneau(); dessinerPlan(); }
   };
 }
 document.getElementById('ajout').onclick = function () {
@@ -446,9 +560,22 @@ document.getElementById('ajout').onclick = function () {
   plan.pieces.push({ id: 'p' + Date.now(), nom: 'Nouvelle pièce', x0: b.w - 26, y0: 0, x1: b.w - 2, y1: 24, niveau: 1, sol: 'bois', ouvertures: [] });
   sel = plan.pieces.length - 1; change(); msg('Pièce ajoutée à droite');
 };
+(function () {
+  var so = document.getElementById('ajoutObj'), t;
+  for (t in CATALOGUE) { var op = document.createElement('option'); op.value = t; op.textContent = CATALOGUE[t][0]; so.appendChild(op); }
+  so.onchange = function () {
+    var t2 = this.value; this.value = ''; if (!t2) { return; }
+    var c = CATALOGUE[t2], b = bornes(), cx = Math.round((b.w - 30) / 2), cy = Math.round((b.h - 20) / 2), o;
+    if (sel >= 0) { var p = plan.pieces[sel]; cx = Math.round((p.x0 + p.x1) / 2); cy = Math.round((p.y0 + p.y1) / 2); }
+    if (t2 === 'rambarde') { o = { type: t2, nom: c[0], pts: [[cx - 10, cy], [cx + 10, cy]] }; }
+    else { o = { type: t2, nom: c[0], x0: cx - Math.floor(c[1] / 2), y0: cy - Math.floor(c[2] / 2) }; o.x1 = o.x0 + c[1] - 1; o.y1 = o.y0 + c[2] - 1; if (t2 === 'escalier') { o.monte = '+x'; } else { o.face = '+y'; } }
+    memo(); (plan.objets = plan.objets || []).push(o); selObj = plan.objets.length - 1; sel = -1; change(); msg(c[0] + ' ajouté : glisse-le à sa place');
+  };
+  document.getElementById('voirNotes').onclick = function () { notesVisibles = !notesVisibles; this.textContent = 'Annotations : ' + (notesVisibles ? 'visibles' : 'cachées'); dessinerPlan(); };
+})();
 document.getElementById('annuler').onclick = function () {
   if (!histo.length) { msg('Rien à annuler'); return; }
-  plan = JSON.parse(histo.pop()); if (sel >= plan.pieces.length) { sel = -1; } change();
+  plan = JSON.parse(histo.pop()); if (sel >= plan.pieces.length) { sel = -1; } if (!plan.objets || selObj >= plan.objets.length) { selObj = -1; } change();
 };
 document.getElementById('reinit').onclick = function () {
   if (!window.confirm('Revenir au plan publié et perdre tes modifications ?')) { return; }
@@ -466,6 +593,17 @@ document.getElementById('copier').onclick = function () {
   if (sel >= 0) { sel = -1; afficherPanneau(); dessinerPlan(); setTimeout(function () { var x = document.getElementById('sortie'); if (x) { x.style.display = 'block'; x.value = t; } }, 0); }
 };
 document.addEventListener('keydown', function (e) {
+  var tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+    var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key], k2 = e.shiftKey ? 5 : 1;
+    if (d && (selObj >= 0 || sel >= 0)) {
+      e.preventDefault(); memo();
+      if (selObj >= 0) { var o = plan.objets[selObj]; deplacerObjet(o, d[0] * k2, d[1] * k2, clone(o)); }
+      else { var p = plan.pieces[sel]; p.x0 += d[0] * k2; p.x1 += d[0] * k2; p.y0 += d[1] * k2; p.y1 += d[1] * k2; if (p.x0 < 0 || p.y0 < 0) { histo.length && (plan = JSON.parse(histo.pop())); } }
+      change(); return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selObj >= 0) { e.preventDefault(); memo(); plan.objets.splice(selObj, 1); selObj = -1; change(); return; }
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); document.getElementById('annuler').click(); }
 });
 

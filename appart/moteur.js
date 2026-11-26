@@ -221,6 +221,66 @@ var RENDUS = {
     B(u, 0, 7, u, 0, 15, [52, 36, 26]); B(u, 0, 16, u, 0, 17, [30, 24, 20]);
     A.acte('guitare', u, 4, { pose: 'guitar' });
   },
+  frigo: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 7), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 18, function (u, v, z) { if (v === d - 1 && z === 12) { return [170, 176, 184]; } if (v === d - 1 && u === W - 2 && z >= 13 && z <= 16) { return [120, 124, 130]; } return [226, 230, 234]; }, true);
+  },
+  lave_linge: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 6), m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 8, function (u, v, z) { var du = u - m, dz = z - 4; if (v === d - 1 && du * du + dz * dz <= 5) { return du * du + dz * dz <= 2 ? [60, 80, 100] : [170, 176, 184]; } return [240, 240, 238]; }, true);
+  },
+  wc: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, m = Math.floor(W / 2), B = A.B;
+    B(m - 2, 0, 0, m + 2, 1, 7, [244, 244, 242], true);
+    B(m - 1, 2, 0, m + 1, Math.min(D - 1, 5), 3, [244, 244, 242], true);
+    B(m - 1, 3, 4, m + 1, Math.min(D - 1, 5), 4, [210, 214, 220]);
+  },
+  douche: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B;
+    B(0, 0, 0, W - 1, D - 1, 0, [236, 238, 240], true);
+    B(W - 1, 0, 1, W - 1, D - 1, 19, function (u, v, z) { return (v === 0 || v === D - 1 || z === 19) ? [190, 196, 204] : (z % 4 === 0 ? [200, 220, 232] : null); });
+    B(0, D - 1, 1, W - 2, D - 1, 19, function (u, v, z) { return (u === 0 || z === 19) ? [190, 196, 204] : (z % 4 === 0 ? [200, 220, 232] : null); });
+    B(1, 0, 18, 2, 1, 18, [180, 184, 190]);
+  },
+  lavabo: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 5), m = Math.floor(W / 2), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 7, [238, 238, 236], true);
+    B(1, 1, 8, W - 2, d - 2, 8, function (u, v) { return (u === 1 || u === W - 2 || v === 1 || v === d - 2) ? [248, 248, 248] : [196, 204, 212]; });
+    B(m - 2, 0, 11, m + 2, 0, 18, function (u, v, z) { return (u === m - 2 || u === m + 2 || z === 11 || z === 18) ? [200, 200, 204] : [160, 176, 188]; });
+  },
+  etagere_bar: function (o, A) {
+    var c = A.cadre, W = c.W, D = c.D, B = A.B, u;
+    B(0, 0, 10, 0, 0, 22, [60, 60, 64]); B(W - 1, 0, 10, W - 1, 0, 22, [60, 60, 64]);
+    B(0, 0, 23, W - 1, D - 1, 23, [196, 160, 110]);
+    for (u = 2; u < W - 2; u += 2) { B(u, Math.floor(D / 2), 20, u, Math.floor(D / 2), 21, [196, 214, 228]); }
+  },
+  tabouret: function (o, A) {
+    var c = A.cadre, u = Math.floor(c.W / 2), v = Math.floor(c.D / 2), B = A.B;
+    B(u - 1, v - 1, 0, u + 1, v + 1, 0, [190, 196, 202], true); B(u, v, 1, u, v, 6, [190, 196, 202]);
+    B(u - 1, v - 1, 7, u + 1, v + 1, 7, [86, 58, 40]);
+  },
+  dressing: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 6), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 21, function (u, v, z) { if (v === d - 1 && u % 7 === 0) { return [190, 150, 100]; } if (v === d - 1 && u % 7 === 5 && z >= 9 && z <= 12) { return [120, 90, 60]; } return varie([216, 176, 120], u, v, z, 2); }, true);
+  },
+  bureau_tv: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 7), m = Math.floor(W / 2), B = A.B, tw = Math.min(W - 4, 12), a = m - Math.floor(tw / 2), b = a + tw - 1;
+    B(0, 0, 7, W - 1, d - 1, 7, [232, 230, 224], true);
+    B(0, 0, 0, 0, d - 1, 6, [210, 208, 202]); B(W - 1, 0, 0, W - 1, d - 1, 6, [210, 208, 202]);
+    B(a, 1, 8, b, 1, 14, function (u, v, z) { return (u === a || u === b || z === 8 || z === 14) ? [18, 18, 20] : [0, 0, 0, 3]; });
+    B(m - 2, 3, 8, m + 2, 4, 8, [60, 60, 64]);
+  },
+  bibliotheque: function (o, A) {
+    var c = A.cadre, W = c.W, d = Math.min(c.D, 3), B = A.B;
+    B(0, 0, 0, W - 1, d - 1, 20, function (u, v, z) {
+      if (v < d - 1 || u === 0 || u === W - 1 || z % 5 === 0 || z === 20) { return [240, 240, 238]; }
+      var h = hs(u, z, 7);
+      if (z % 5 === 4 && h % 3 === 0) { return null; }
+      if (u === 2 && z === 12) { return [230, 186, 40]; }
+      if (u === W - 3 && z === 7) { return [170, 60, 140]; }
+      return [[170, 50, 46], [40, 80, 140], [60, 120, 70], [210, 170, 60], [90, 60, 40], [230, 230, 220]][h % 6];
+    }, true);
+  },
   affiche: function (o, A) {
     var c = A.cadre, W = c.W, B = A.B, z0 = o.z0 || 18, z1 = o.z1 || 26;
     B(0, 0, z0, W - 1, 0, z1, function (u, v, z) {
