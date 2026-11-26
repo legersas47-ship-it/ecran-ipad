@@ -541,7 +541,8 @@ function apercu() {
   new Uint32Array(im.data.buffer).set(m.base);
   var j, sky = Moteur.pack(168, 203, 228);
   var f = new Uint32Array(im.data.buffer);
-  for (j = 0; j < m.winPx.length; j++) { f[m.winPx[j]] = sky; }
+  var VG = [null, Moteur.pack(44, 86, 44), Moteur.pack(64, 118, 54), Moteur.pack(96, 150, 70), Moteur.pack(92, 66, 44)];
+  for (j = 0; j < m.winPx.length; j++) { f[m.winPx[j]] = (m.winVeg && m.winVeg[j]) ? VG[m.winVeg[j]] : sky; }
   cA.putImageData(im, 0, 0);
 }
 

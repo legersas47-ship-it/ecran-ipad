@@ -571,6 +571,20 @@ function construire(plan) {
     hMur[i] = m;
   }
   function decoMur() { return null; }
+  // ce qu'on voit par la fenetre : 0 = ciel, 1-3 = feuillage (ombre a clair), 4 = tronc
+  function vegetal(x, y, zr) {
+    var a = (x === 0 || (dedans(x - 1, y) && mur[I(x - 1, y)] === 0 && dedans(x + 1, y) && mur[I(x + 1, y)] === 0)) ? y : x;
+    var top = 18 + 4 * Math.sin(a * 0.31) + 2.5 * Math.sin(a * 0.83 + 1.7) + (hs(a >> 2, 3, 9) % 3);
+    var h = hs(a, zr, 17);
+    if (zr <= top) {
+      if (a % 13 === 6 && zr <= 12 && zr > 8) { return 4; }
+      if (zr > top - 1.5) { return h % 3 ? 3 : 2; }
+      if (zr > top - 5) { return h % 4 === 0 ? 3 : 2; }
+      return h % 5 === 0 ? 2 : 1;
+    }
+    if (zr <= top + 1.5 && h % 3 === 0) { return 2; }
+    return 0;
+  }
   function niveauFenetre(x, y) {
     var a = Math.max(solInt(x + 1, y), solInt(x, y + 1), solInt(x - 1, y), solInt(x, y - 1));
     return a > 0 ? a : 1;
@@ -587,7 +601,7 @@ function construire(plan) {
         var deb = (fenetre[i - 1] || fenetre[i - SX]) ? 1 : 0, fin = (fenetre[i + 1] || (i + SX < N && fenetre[i + SX])) ? 1 : 0;
         if (zr === 7) { c2 = [210, 206, 198]; }
         else if (zr >= 8 && zr <= 25) {
-          if (!deb || !fin || zr === 8 || zr === 25 || zr === 14 || zr === 20) { c2 = [236, 233, 226]; } else { c2 = [0, 0, 0, 2]; }
+          if (!deb || !fin || zr === 8 || zr === 25 || zr === 14 || zr === 20) { c2 = [236, 233, 226]; } else { c2 = [0, 0, 0, 2, vegetal(x, y, zr)]; }
         }
       }
       if (!c2 && grand) { c2 = decoMur(x, y, zz2); }
@@ -611,16 +625,17 @@ function construire(plan) {
   var base = new Uint32Array(W * H), depth = new Int16Array(W * H), ptype = new Uint8Array(W * H);
   var bg = pack(22, 20, 27);
   for (i = 0; i < W * H; i++) { base[i] = bg; depth[i] = -1; }
+  var wtree = new Uint8Array(W * H), wtCour = 0;
   function px(x2, y2, col, d, t) {
     if (x2 < 0 || y2 < 0 || x2 >= W || y2 >= H) { return; }
-    var q = x2 + y2 * W; base[q] = col; depth[q] = d; ptype[q] = t;
+    var q = x2 + y2 * W; base[q] = col; depth[q] = d; ptype[q] = t; wtree[q] = wtCour;
   }
   var buckets = [], k, v, sx, sy, c, nz, tp, rr2, ll, d, t2;
   for (j = 0; j < V.length; j++) { k = (V[j][0] + V[j][1]) * 40 + V[j][2]; (buckets[k] || (buckets[k] = [])).push(V[j]); }
   for (k = 0; k < buckets.length; k++) {
     if (!buckets[k]) { continue; }
     for (j = 0; j < buckets[k].length; j++) {
-      v = buckets[k][j]; c = v[3]; t2 = v[4];
+      v = buckets[k][j]; c = v[3]; t2 = v[4]; wtCour = t2 === 2 ? (c[4] || 0) : 0;
       sx = OX + 2 * (v[0] - v[1]); sy = OY + v[0] + v[1] - 2 * v[2];
       nz = ((hs(v[0], v[1], v[2]) % 5) - 2) * 2;
       tp = v[5] ? pack(v[5][0], v[5][1], v[5][2]) : pack(c[0] + nz, c[1] + nz, c[2] + nz);
@@ -634,8 +649,8 @@ function construire(plan) {
       px(sx + 1, sy + 3, ll, d, t2); px(sx + 2, sy + 3, rr2, d, t2);
     }
   }
-  var winPx = [], tvPx = [];
-  for (i = 0; i < W * H; i++) { if (ptype[i] === 2) { winPx.push(i); } else if (ptype[i] === 3) { tvPx.push(i); } }
+  var winPx = [], tvPx = [], winVeg = [];
+  for (i = 0; i < W * H; i++) { if (ptype[i] === 2) { winPx.push(i); winVeg.push(wtree[i]); } else if (ptype[i] === 3) { tvPx.push(i); } }
 
   // 9. grille de deplacement (cases de 2 x 2)
   var CW = Math.ceil(SX / 2), CH = Math.ceil(SY / 2), cwalk = new Uint8Array(CW * CH), cht = new Int8Array(CW * CH);
@@ -657,7 +672,7 @@ function construire(plan) {
 
   return {
     W: W, H: H, OX: OX, OY: OY, SX: SX, SY: SY,
-    base: base, depth: depth, winPx: winPx, tvPx: tvPx,
+    base: base, depth: depth, winPx: winPx, winVeg: winVeg, tvPx: tvPx,
     fl: fl, occ: occ, CW: CW, CH: CH, cwalk: cwalk, cht: cht,
     actes: actes, lumieres: lumieres, vapeur: vapeur, jours: jours,
     proj: function (x2, y2, z2) { return [OX + 2 * (x2 - y2) + 2, OY + x2 + y2 - 2 * z2 + 1]; }

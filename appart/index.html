@@ -316,6 +316,7 @@ function lueur(x, y, z, r, col, a) {
 
 /* ================= BOUCLE ================= */
 var dernier = Date.now(), tvScene = 0, tvChange = 0;
+var VEG = [null, [44, 86, 44], [64, 118, 54], [96, 150, 70], [92, 66, 44]];
 var TV_PAL = [[[60, 110, 200], [230, 120, 80], [40, 60, 120], [240, 220, 180]], [[30, 140, 90], [200, 230, 120], [20, 60, 40], [250, 250, 250]], [[180, 40, 60], [250, 180, 60], [60, 20, 40], [230, 230, 240]]];
 function tick() {
   var now = Date.now(), dt = Math.min(0.3, (now - dernier) / 1000); dernier = now;
@@ -329,7 +330,12 @@ function tick() {
   var nuit = h < 6 || h > 20.5, goutte = Math.floor(now / 60);
   for (j = 0; j < winPx.length; j++) {
     var ip = winPx[j], wx = ip % W, wy = (ip - wx) / W, col = pack(cr + (wy % 7) * 0.6, cg + (wy % 7) * 0.6, cb);
-    if (nuit && !meteo.pluie && hs(wx, wy, 5) % 97 === 0 && (hs(wx, wy, now >> 11) % 5)) { col = pack(240, 240, 220); }
+    var vg = M.winVeg ? M.winVeg[j] : 0;
+    if (vg) {
+      var VG = VEG[vg], jour = Math.max(0.35, Math.min(1, (ciel[0] + ciel[1] + ciel[2]) / 520)), bouge = (vg < 4 && hs(wx >> 1, wy >> 1, (now / 1400) | 0) % 9 === 0) ? 14 : 0;
+      col = pack(VG[0] * jour + bouge, VG[1] * jour + bouge, VG[2] * jour);
+    }
+    else if (nuit && !meteo.pluie && hs(wx, wy, 5) % 97 === 0 && (hs(wx, wy, now >> 11) % 5)) { col = pack(240, 240, 220); }
     if (meteo.pluie && (wy + goutte + (hs(wx, 0, 3) % 30)) % 11 === 0) { col = pack(cr + 55, cg + 55, cb + 60); }
     frame[ip] = col;
   }
