@@ -17,322 +17,30 @@
 <canvas id="c"></canvas>
 <div id="hud"></div>
 <button id="vit" type="button">x1</button>
+<script src="moteur.js"></script>
 <script>
-/* Mon appart en pixel art — prototype v0.1 (ES5 pour iPad mini 2 / iOS 12)
-   Monde en voxels de 10 cm, rendu isometrique 2:1, eclairage selon l'heure,
-   meteo reelle de Bordeaux (Open-Meteo), personnage autonome. */
+/* Mon appart en pixel art — v0.2 (ES5 pour iPad mini 2 / iOS 12).
+   Le decor vient de plan.json (modifiable avec editeur.html) et du moteur (moteur.js). */
 (function () {
 'use strict';
-
-/* ================= REGLAGES ================= */
 var VILLE = { lat: 44.8378, lon: -0.5792 };
-var VITESSES = [1, 60, 600];           // x1 = temps reel ; x60 = 1 h par minute ; x600 = 1 h toutes les 6 s
+var VITESSES = [1, 60, 600];
 var FPS = 12;
-
-/* ================= RENDU DE BASE ================= */
-var W = 488, H = 322, OX = 124, OY = 76;
 var cv = document.getElementById('c'), cx = cv.getContext('2d');
-cv.width = W; cv.height = H;
-var img = cx.createImageData(W, H);
-var frame = new Uint32Array(img.data.buffer);
-var base = new Uint32Array(W * H);
-var depth = new Int16Array(W * H);
-var ptype = new Uint8Array(W * H);
-
-function pack(r, g, b) {
-  r = r < 0 ? 0 : (r > 255 ? 255 : r | 0);
-  g = g < 0 ? 0 : (g > 255 ? 255 : g | 0);
-  b = b < 0 ? 0 : (b > 255 ? 255 : b | 0);
-  return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
-}
-function hs(x, y, z) {
-  var h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z + 7, -2048144777);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return (h ^ (h >>> 16)) >>> 0;
-}
-
-/* ================= MONDE ================= */
-var SX = 180, SY = 60;
-var fl = new Int8Array(SX * SY), occ = new Uint8Array(SX * SY);
-var i0;
-for (i0 = 0; i0 < fl.length; i0++) { fl[i0] = -1; }
-var V = [];
+var pack = Moteur.pack, hs = Moteur.hs;
+var M, W, H, img, frame, base, depth, winPx, tvPx, fl, occ, SX, CW, CHh, cwalk, cht, proj;
 function I(x, y) { return x + y * SX; }
-function add(x, y, z, c, t, cap) { if (c) { V.push([x, y, z, c, (c[3] || t || 0), cap || null]); } }
-function box(x0, y0, z0, x1, y1, z1, c, block) {
-  var x, y, z;
-  for (x = x0; x <= x1; x++) {
-    for (y = y0; y <= y1; y++) {
-      for (z = z0; z <= z1; z++) { add(x, y, z, typeof c === 'function' ? c(x, y, z) : c); }
-      if (block) { occ[I(x, y)] = 1; }
-    }
-  }
-}
-function varie(c, x, y, z, amp) { var v = (hs(x, y, z) % 5) - 2; return [c[0] + v * amp, c[1] + v * amp, c[2] + v * amp]; }
 
-var WALL = [233, 230, 224], CAP = [118, 112, 106], ROOF = [176, 168, 158];
-var WOOD = [198, 150, 96], PINE = [176, 110, 58], GREYF = [196, 194, 189], LIGHTF = [214, 212, 206];
-
-function bois(x, y) {
-  var r = Math.floor(y / 2), off = (r * 7) % 12, p = Math.floor((x + off) / 12);
-  var v = (hs(p, r, 1) % 5) - 2;
-  var c = [WOOD[0] + v * 7, WOOD[1] + v * 6, WOOD[2] + v * 4];
-  if ((x + off) % 12 === 0) { c = [c[0] - 18, c[1] - 16, c[2] - 12]; }
-  return c;
-}
-function uni(c) { return function (x, y) { return varie(c, x, y, 0, 2); }; }
-
-function sol(x0, y0, x1, y1, niv, colf) {
-  var x, y, z, c;
-  for (x = x0; x <= x1; x++) {
-    for (y = y0; y <= y1; y++) {
-      fl[I(x, y)] = niv; occ[I(x, y)] = 0;
-      c = colf(x, y);
-      add(x, y, niv - 1, c, 1);
-      if (niv > 1 && (x === x1 || y === y1)) {
-        for (z = 0; z < niv - 1; z++) { add(x, y, z, [c[0] * 0.75, c[1] * 0.75, c[2] * 0.75], 1); }
-      }
-    }
-  }
-}
-function mur(x0, y0, x1, y1, zTop, deco, cap) {
-  var x, y, z, c;
-  for (x = x0; x <= x1; x++) {
-    for (y = y0; y <= y1; y++) {
-      occ[I(x, y)] = 1;
-      for (z = 0; z <= zTop; z++) {
-        c = deco ? deco(x, y, z) : null;
-        add(x, y, z, c || varie(WALL, x, y, z, 1), 4, z === zTop ? (cap || CAP) : null);
-      }
-    }
-  }
-}
-function feuillage(cx0, cy0, cz0, r, seed) {
-  var x, y, z, d, h;
-  for (x = cx0 - r; x <= cx0 + r; x++) {
-    for (y = cy0 - r; y <= cy0 + r; y++) {
-      for (z = cz0 - r; z <= cz0 + r; z++) {
-        d = (x - cx0) * (x - cx0) + (y - cy0) * (y - cy0) + (z - cz0) * (z - cz0) * 0.8;
-        h = hs(x, y, z + seed);
-        if (d <= r * r && h % 3 !== 0) { add(x, y, z, [52 + h % 30, 112 + h % 40, 46 + h % 20]); }
-      }
-    }
-  }
-}
-
-/* --- Decors muraux --- */
-var AFFICHE = [[124, 74, 44], [58, 104, 62], [206, 160, 70], [92, 64, 120], [170, 92, 58], [90, 56, 40]];
-function decoFond(x, y, z) {
-  if (x >= 19 && x <= 31 && z >= 25 && z <= 32) {                 // affiche illustree au-dessus de la cheminee
-    if (x === 19 || x === 31 || z === 25 || z === 32) { return [240, 238, 232]; }
-    return AFFICHE[hs(x >> 1, z >> 1, 3) % AFFICHE.length];
-  }
-  if (x >= 37 && x <= 47 && z >= 23 && z <= 32) {                 // affiche encadree noire
-    if (x === 37 || x === 47 || z === 23 || z === 32) { return [24, 24, 26]; }
-    if ((z === 29 || z === 30) && x > 39 && x < 45) { return [180, 172, 150]; }
-    return hs(x, z, 9) % 6 === 0 ? [150, 150, 150] : [56, 56, 62];
-  }
-  if (x >= 66 && x <= 79 && z >= 13 && z <= 18) {                 // guirlande de fleurs
-    var zig = 18 - Math.abs(((x - 66) % 6) - 3);
-    if (z === zig || z === zig - 1) { return (x + z) % 2 ? [212, 52, 40] : [242, 192, 44]; }
-    if (z === 13 && x % 3 === 0) { return [232, 182, 40]; }
-  }
-  if (x >= 55 && x <= 58 && z >= 12 && z <= 16) {                 // calendrier
-    if (x === 55 || x === 58 || z === 12 || z === 16) { return [205, 42, 46]; }
-    return [242, 206, 64];
-  }
-  return null;
-}
-function decoGauche(x, y, z) {                                    // grande fenetre du salon
-  if (y >= 17 && y <= 43 && z === 13) { return [210, 206, 198]; }
-  if (y >= 18 && y <= 42 && z >= 14 && z <= 31) {
-    if (y === 30) { return [110, 110, 112]; }
-    if (y === 18 || y === 42 || z === 14 || z === 31 || z === 20 || z === 26) { return [236, 233, 226]; }
-    return [0, 0, 0, 2];
-  }
-  return null;
-}
-
-/* --- Sols --- */
-sol(1, 1, 51, 59, 6, bois);                 // salon sureleve
-sol(53, 1, 79, 59, 1, bois);                // cuisine + entree
-sol(80, 8, 80, 20, 1, bois);                // porte cuisine -> couloir
-sol(81, 1, 139, 27, 1, bois);               // couloir
-sol(81, 29, 133, 59, 1, uni(GREYF));        // chambre 2 (coloc, vide)
-sol(135, 29, 179, 59, 1, uni(LIGHTF));      // chambre 1
-sol(100, 28, 105, 28, 1, uni(GREYF));       // porte chambre 2
-sol(135, 28, 139, 28, 1, uni(LIGHTF));      // porte chambre 1
-
-/* --- Escalier (5 marches) + rampe --- */
-(function () {
-  var x, y, z, s, top;
-  for (x = 52; x <= 61; x++) {
-    s = Math.floor((x - 52) / 2); top = 4 - s;
-    for (y = 44; y <= 58; y++) {
-      fl[I(x, y)] = top + 1; occ[I(x, y)] = 0;
-      for (z = 0; z <= top; z++) { add(x, y, z, varie(z === top ? PINE : [140, 86, 46], x, y, z, 3), 1); }
-    }
-    fl[I(x, 59)] = 1; occ[I(x, 59)] = 1;
-    add(x, 59, top + 9, [150, 90, 46]);
-  }
-  for (z = 1; z <= 13; z++) { add(61, 59, z, [140, 84, 42]); }
-  for (z = 5; z <= 14; z++) { add(52, 59, z, [140, 84, 42]); }
-})();
-
-/* --- Murs --- */
-mur(0, 0, 179, 0, 33, decoFond);
-mur(0, 1, 0, 59, 33, decoGauche);
-mur(52, 1, 52, 43, 11);
-mur(80, 1, 80, 7, 6); mur(80, 21, 80, 59, 6);
-mur(81, 28, 99, 28, 6); mur(106, 28, 134, 28, 6); mur(140, 28, 179, 28, 6);
-mur(134, 29, 134, 59, 6);
-mur(140, 1, 155, 27, 7, null, ROOF);         // WC (ferme)
-mur(156, 1, 179, 27, 7, null, ROOF);         // salle de bain (fermee)
-
-/* --- Salon (sol a z=6) --- */
-// etagere blanche + objets
-box(2, 1, 6, 2, 1, 24, [236, 236, 236], true); box(8, 1, 6, 8, 1, 24, [236, 236, 236], true);
-box(2, 5, 6, 2, 5, 24, [236, 236, 236], true); box(8, 5, 6, 8, 5, 24, [236, 236, 236], true);
-box(2, 1, 10, 8, 5, 10, [208, 184, 144], true); box(2, 1, 16, 8, 5, 16, [208, 184, 144], true);
-box(2, 1, 21, 8, 5, 21, [208, 184, 144], true); box(2, 1, 24, 8, 5, 24, [208, 184, 144], true);
-box(4, 2, 25, 6, 4, 27, [196, 104, 52]);                          // pot du ficus
-feuillage(5, 3, 31, 4, 11);
-box(7, 3, 22, 7, 3, 23, [200, 40, 50]);                           // vase rouge
-box(3, 3, 17, 3, 3, 20, [202, 162, 62]);                          // statuette laiton
-box(5, 3, 17, 5, 3, 18, [70, 70, 160]); add(5, 3, 19, [236, 236, 230]);   // statuette peinte
-box(6, 2, 17, 7, 3, 19, [34, 32, 34]);                            // statuette noire ailee
-box(7, 2, 11, 7, 2, 12, [70, 70, 70]); add(7, 3, 13, [236, 228, 200]);     // lampe de bureau
-// guitare sur pied
-box(10, 2, 7, 13, 3, 12, function (x, y, z) { return (x === 10 || x === 13 || z === 7 || z === 12) ? [70, 34, 20] : [214, 140, 40]; }, true);
-box(11, 2, 13, 12, 2, 21, [52, 36, 26]); box(11, 2, 22, 12, 2, 23, [30, 24, 20]);
-// cheminee en marbre rouge
-box(17, 1, 6, 33, 4, 15, function (x, y, z) {
-  if (y === 4) {
-    if (x >= 21 && x <= 29 && z <= 12) { return [30, 22, 20]; }
-    if (x >= 20 && x <= 30 && z <= 13) { return [236, 231, 226]; }
-  }
-  return hs(x, y, z) % 9 === 0 ? [222, 204, 198] : varie([138, 56, 44], x, y, z, 4);
-}, true);
-box(16, 1, 16, 34, 5, 16, function (x, y, z) { return hs(x, y, z) % 8 === 0 ? [222, 204, 198] : [150, 64, 50]; }, true);
-box(17, 5, 6, 33, 6, 6, function (x, y, z) { return hs(x, y, z) % 7 === 0 ? [222, 204, 198] : [128, 52, 42]; });
-box(24, 3, 6, 26, 3, 7, [120, 78, 44]);                          // buche
-box(22, 2, 17, 28, 2, 25, function (x, y, z) { return (x === 22 || x === 28 || z === 17 || z === 25) ? [196, 200, 206] : [150, 166, 178]; });
-box(31, 3, 17, 31, 3, 18, [240, 232, 206]);                       // bougie
-// buffet noir + TV
-box(36, 1, 6, 50, 6, 13, function (x, y, z) {
-  if (y === 6 && z >= 11 && z <= 12 && x > 36 && x < 50) { return hs(x, y, z) % 4 === 0 ? [180, 140, 90] : [20, 15, 14]; }
-  if (y === 6 && (x === 39 || x === 43 || x === 47) && z < 11) { return [26, 20, 18]; }
-  return [44, 33, 30];
-}, true);
-box(39, 3, 14, 47, 3, 21, function (x, y, z) { return (x === 39 || x === 47 || z === 14 || z === 21) ? [18, 18, 20] : [0, 0, 0, 3]; });
-box(48, 3, 14, 49, 4, 16, [36, 30, 30]);                          // lion
-box(37, 3, 14, 37, 3, 15, [190, 96, 50]); feuillage(37, 3, 18, 2, 5);
-// lampadaire
-box(34, 4, 6, 34, 4, 26, [192, 160, 90], true); box(34, 4, 27, 36, 6, 28, [232, 224, 202]);
-// table pres de la fenetre + chaise blanche
-box(3, 22, 13, 12, 38, 13, [228, 224, 214], true);
-box(3, 22, 6, 3, 22, 12, [200, 196, 188]); box(12, 22, 6, 12, 22, 12, [200, 196, 188]);
-box(3, 38, 6, 3, 38, 12, [200, 196, 188]); box(12, 38, 6, 12, 38, 12, [200, 196, 188]);
-box(5, 26, 14, 9, 30, 14, function (x, y) { return (x + y) % 3 ? [230, 230, 236] : [190, 60, 50]; });
-box(4, 33, 14, 7, 35, 14, [120, 128, 140]);
-box(14, 27, 6, 16, 29, 11, function (x, y, z) { return z === 11 ? [236, 236, 230] : ((x === 14 || x === 16) && (y === 27 || y === 29) ? [220, 220, 214] : null); }, true);
-box(16, 27, 12, 16, 29, 18, function (x, y, z) { return y === 28 && z % 2 ? null : [240, 240, 236]; });
-// table basse en bois fonce
-box(18, 24, 10, 29, 33, 10, [74, 44, 32], true);
-box(18, 24, 6, 18, 24, 9, [64, 38, 28]); box(29, 24, 6, 29, 24, 9, [64, 38, 28]);
-box(18, 33, 6, 18, 33, 9, [64, 38, 28]); box(29, 33, 6, 29, 33, 9, [64, 38, 28]);
-box(20, 27, 11, 20, 27, 13, [40, 110, 60]); box(22, 26, 11, 22, 26, 14, [40, 110, 60]);
-box(25, 29, 11, 26, 30, 12, [170, 190, 182]);
-// canape d'angle marron
-var BRUN = [94, 60, 46];
-box(4, 49, 6, 37, 57, 10, function (x, y, z) { if ((x === 4 && y === 49) || (x === 37 && y === 57)) { return null; } return varie(BRUN, x, y, z, 2); }, true);
-box(4, 56, 11, 37, 58, 15, function (x, y, z) { return varie(z === 15 ? [104, 68, 52] : BRUN, x, y, z, 2); }, true);
-box(4, 49, 11, 5, 55, 13, function (x, y, z) { return varie(BRUN, x, y, z, 2); }, true);
-box(30, 36, 6, 37, 48, 10, function (x, y, z) { if ((x === 30 || x === 37) && y === 36) { return null; } return varie(BRUN, x, y, z, 2); }, true);
-box(31, 40, 11, 36, 46, 11, function (x, y) { return hs(x, y, 4) % 3 ? [158, 152, 146] : null; });
-box(14, 51, 11, 20, 54, 11, function (x, y) { return hs(x, y, 6) % 4 ? [120, 118, 116] : null; });
-// petite table, lampe orange et monstera
-box(1, 51, 6, 3, 57, 11, [120, 84, 54], true);
-box(2, 52, 12, 2, 52, 13, [60, 60, 60]); box(1, 51, 14, 3, 53, 16, [232, 122, 40]);
-feuillage(2, 56, 15, 3, 21);
-
-/* --- Cuisine (sol a z=1) --- */
-box(53, 1, 79, 6, 1, 8, function (x, y, z) { return (y === 6 && x % 5 === 0) ? [210, 210, 206] : [236, 236, 232]; }, true);
-box(53, 1, 79, 6, 9, 9, [196, 196, 192], true);
-box(60, 3, 10, 61, 4, 11, [228, 110, 30]);                       // potiron
-box(64, 3, 10, 64, 3, 13, [140, 182, 222]); box(66, 3, 10, 66, 3, 13, [150, 190, 226]);
-add(58, 3, 10, [240, 236, 226]);
-box(66, 1, 19, 79, 4, 19, [238, 238, 236]);                       // etagere a verres
-(function () { var x; for (x = 67; x <= 78; x += 2) { box(x, 2, 20, x, 2, 21, [196, 214, 228]); } })();
-// tabouret de bar + veste, entree
-box(69, 44, 1, 71, 46, 1, [190, 196, 202], true); box(70, 45, 2, 70, 45, 7, [190, 196, 202]);
-box(69, 44, 8, 71, 46, 8, [86, 58, 40]); box(70, 46, 4, 71, 47, 9, [26, 26, 30]);
-
-/* --- Chambre 1 (sol a z=1) --- */
-box(135, 44, 1, 139, 58, 9, function (x, y, z) {
-  if (x === 139 && (z === 3 || z === 7) && y % 4 === 2) { return [150, 100, 56]; }
-  if (x === 139 && z === 5) { return [196, 150, 96]; }
-  return varie([216, 172, 112], x, y, z, 3);
-}, true);
-box(137, 50, 10, 137, 50, 13, function (x, y, z) { return z === 12 ? [242, 224, 150] : [50, 50, 50]; });
-box(158, 38, 1, 178, 52, 3, [150, 150, 154], true);
-box(158, 38, 4, 178, 52, 6, [240, 240, 236], true);
-box(174, 40, 7, 177, 50, 7, [252, 252, 250], true);
-box(158, 38, 7, 171, 52, 7, function (x, y) { return hs(x, y, 8) % 5 ? [222, 224, 230] : [206, 208, 216]; });
-box(160, 42, 8, 168, 48, 8, function (x, y) { return hs(x, y, 2) % 3 ? null : [214, 216, 222]; });
-
-/* ================= RASTERISATION (une seule fois) ================= */
-function px(x, y, col, d, t) {
-  if (x < 0 || y < 0 || x >= W || y >= H) { return; }
-  var i = x + y * W; base[i] = col; depth[i] = d; ptype[i] = t;
-}
-function rendreDecor() {
-  var buckets = [], k, j, v, n = V.length, sx, sy, c, nz, top, r, l, d, t;
-  var bg = pack(22, 20, 27);
-  for (j = 0; j < W * H; j++) { base[j] = bg; depth[j] = -1; ptype[j] = 0; }
-  for (j = 0; j < n; j++) { k = (V[j][0] + V[j][1]) * 40 + V[j][2]; (buckets[k] || (buckets[k] = [])).push(V[j]); }
-  for (k = 0; k < buckets.length; k++) {
-    if (!buckets[k]) { continue; }
-    for (j = 0; j < buckets[k].length; j++) {
-      v = buckets[k][j]; c = v[3]; t = v[4];
-      sx = OX + 2 * (v[0] - v[1]); sy = OY + v[0] + v[1] - 2 * v[2];
-      nz = ((hs(v[0], v[1], v[2]) % 5) - 2) * 2;
-      top = v[5] ? pack(v[5][0], v[5][1], v[5][2]) : pack(c[0] + nz, c[1] + nz, c[2] + nz);
-      r = pack(c[0] * 0.86 + nz, c[1] * 0.86 + nz, c[2] * 0.86 + nz);
-      l = pack(c[0] * 0.70 + nz, c[1] * 0.70 + nz, c[2] * 0.72 + nz);
-      if (t === 4 && !v[5]) { top = v[0] === 0 ? r : l; }
-      d = t === 1 ? -1 : v[0] + v[1];
-      px(sx + 1, sy, top, d, t); px(sx + 2, sy, top, d, t);
-      px(sx, sy + 1, top, d, t); px(sx + 1, sy + 1, top, d, t); px(sx + 2, sy + 1, top, d, t); px(sx + 3, sy + 1, top, d, t);
-      px(sx, sy + 2, l, d, t); px(sx + 1, sy + 2, l, d, t); px(sx + 2, sy + 2, r, d, t); px(sx + 3, sy + 2, r, d, t);
-      px(sx + 1, sy + 3, l, d, t); px(sx + 2, sy + 3, r, d, t);
-    }
-  }
-}
-rendreDecor();
-var winPx = [], tvPx = [], q;
-for (q = 0; q < W * H; q++) { if (ptype[q] === 2) { winPx.push(q); } else if (ptype[q] === 3) { tvPx.push(q); } }
-V = null;
-
-function proj(x, y, z) { return [OX + 2 * (x - y) + 2, OY + x + y - 2 * z + 1]; }
-
-/* ================= CHEMINS (grille de 2 x 2 voxels) ================= */
-var CW = 90, CHh = 30, cwalk = new Uint8Array(CW * CHh), cht = new Int8Array(CW * CHh);
-(function () {
-  var a, b, dx, dy, x, y, f, ok, h;
-  for (b = 0; b < CHh; b++) {
-    for (a = 0; a < CW; a++) {
-      ok = 1; h = -1;
-      for (dx = 0; dx < 2; dx++) {
-        for (dy = 0; dy < 2; dy++) {
-          x = a * 2 + dx; y = b * 2 + dy; f = fl[I(x, y)];
-          if (f < 0 || occ[I(x, y)]) { ok = 0; } else if (f > h) { h = f; }
-        }
-      }
-      cwalk[a + b * CW] = ok; cht[a + b * CW] = h;
-    }
-  }
-})();
+function demarrer(plan) {
+M = Moteur.construire(plan);
+W = M.W; H = M.H; base = M.base; depth = M.depth; winPx = M.winPx; tvPx = M.tvPx;
+fl = M.fl; occ = M.occ; SX = M.SX; CW = M.CW; CHh = M.CH; cwalk = M.cwalk; cht = M.cht; proj = M.proj;
+cv.width = W; cv.height = H;
+img = cx.createImageData(W, H);
+frame = new Uint32Array(img.data.buffer);
+function KW(kit, x, y, z) { var r = M.versMonde(kit, x, y, z); return r || [x, y, z]; }
+function projK(kit, x, y, z) { var w = KW(kit, x, y, z); return proj(w[0], w[1], w[2]); }
+function lueurK(kit, x, y, z, r, col, a) { var w = KW(kit, x, y, z); lueur(w[0], w[1], w[2], r, col, a); }
 function chemin(x, y, tx, ty) {
   var s = Math.floor(x / 2) + Math.floor(y / 2) * CW, g = Math.floor(tx / 2) + Math.floor(ty / 2) * CW;
   var prev = new Int32Array(CW * CHh), file = [s], k = 0, c, a, b, n, d, nb;
@@ -457,6 +165,15 @@ var ACTS = {
   fenetre:  { ax: 45, ay: 30, pose: 'stand', dos: false },
   lit:      { ax: 156, ay: 36, pose: 'sleep' }
 };
+var KIT_ACT = { cuisine: 'cuisine', lit: 'chambre1' };
+(function () {
+  var n, a, w;
+  for (n in ACTS) {
+    a = ACTS[n]; var kit = KIT_ACT[n] || 'salon';
+    w = KW(kit, a.ax, a.ay); a.ax = w[0]; a.ay = w[1];
+    if (a.sx !== undefined) { w = KW(kit, a.sx, a.sy, a.sz); a.sx = w[0]; a.sy = w[1]; a.sz = w[2]; }
+  }
+})();
 function hasard(t) { return t[Math.floor(Math.random() * t.length)]; }
 function choisir(h) {
   if (h >= 1 && h < 7) { return 'lit'; }
@@ -466,7 +183,8 @@ function choisir(h) {
   if (h >= 20.5 || h < 1) { return hasard(['canape', 'canape', 'canape', 'guitare', 'cheminee']); }
   return hasard(['table', 'table', 'canape', 'plantes', 'guitare', 'cheminee', 'fenetre', 'cuisine']);
 }
-var P = { x: 66, y: 16, z: 1, pose: 'stand', dos: false, chemin: null, act: null, fin: 0, pas: 0 };
+var P0 = KW('cuisine', 66, 16);
+var P = { x: P0[0], y: P0[1], z: 1, pose: 'stand', dos: false, chemin: null, act: null, fin: 0, pas: 0 };
 function lancer(nom) {
   var a = ACTS[nom], prev = P.act ? ACTS[P.act] : null;
   if (prev && (prev.sx !== undefined || prev.pose === 'sleep')) { P.x = prev.ax; P.y = prev.ay; }
@@ -505,7 +223,7 @@ var persoX = 200;
 function dessinerPerso() {
   var a = ACTS[P.act] || {};
   if (P.pose === 'sleep') {
-    var hp = proj(175, 45, 8); persoX = hp[0]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
+    var hp = projK('chambre1', 175, 45, 8); persoX = hp[0]; var hx = Math.round(hp[0]) - 4, hy = Math.round(hp[1]) - 7, s = getSpr('stand', false, true), j, e, x, y;
     for (j = 0; j < s.px.length; j++) {
       e = s.px[j]; if (e[1] > 7) { continue; }
       x = hx + e[0]; y = hy + e[1]; if (x >= 0 && y >= 0 && x < W && y < H) { frame[x + y * W] = e[2]; }
@@ -596,10 +314,10 @@ function tick() {
 
   // vapeur de cuisine et Zz
   if (P.act === 'cuisine' && P.pose !== 'walk' && Math.random() < 0.5) {
-    var vp = proj(61 + Math.random() * 2, 4, 12); particules.push({ x: vp[0], y: vp[1], vy: 6, vie: 1.6, s: Math.random() * 9 });
+    var vp = projK('cuisine', 61 + Math.random() * 2, 4, 12); particules.push({ x: vp[0], y: vp[1], vy: 6, vie: 1.6, s: Math.random() * 9 });
   }
   if (P.act === 'lit' && P.pose === 'sleep' && Math.random() < 0.03) {
-    var zp = proj(175, 45, 12); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true });
+    var zp = projK('chambre1', 175, 45, 12); particules.push({ x: zp[0] + 4, y: zp[1] - 6, vy: 4, vie: 2.5, s: Math.random() * 9, z: true });
   }
   particulesMaj(dt);
   cx.putImageData(img, 0, 0);
@@ -611,17 +329,17 @@ function tick() {
   cx.fillStyle = 'rgb(' + (amb[0] | 0) + ',' + (amb[1] | 0) + ',' + (amb[2] | 0) + ')';
   cx.fillRect(0, 0, W, H);
   cx.globalCompositeOperation = 'lighter';
-  if (h > 8 && h < 18) { lueur(8, 30, 6, 70, '255,236,190', meteo.pluie ? 0.08 : 0.16); }
+  if (h > 8 && h < 18) { lueurK('salon', 8, 30, 6, 70, '255,236,190', meteo.pluie ? 0.08 : 0.16); }
   if (lampes) {
     var fli = 0.95 + Math.random() * 0.05;
-    lueur(35, 7, 25, 60, '255,190,110', 0.34 * fli);
-    lueur(2, 53, 14, 46, '255,140,60', 0.36 * fli);
-    lueur(7, 4, 12, 26, '255,210,140', 0.22);
-    lueur(31, 4, 19, 10 + Math.random() * 3, '255,170,80', 0.5);
-    if (P.act === 'cuisine') { lueur(66, 12, 24, 60, '255,230,170', 0.3); }
+    lueurK('salon', 35, 7, 25, 60, '255,190,110', 0.34 * fli);
+    lueurK('salon', 2, 53, 14, 46, '255,140,60', 0.36 * fli);
+    lueurK('salon', 7, 4, 12, 26, '255,210,140', 0.22);
+    lueurK('salon', 31, 4, 19, 10 + Math.random() * 3, '255,170,80', 0.5);
+    if (P.act === 'cuisine') { lueurK('cuisine', 66, 12, 24, 60, '255,230,170', 0.3); }
   }
-  if (tvOn) { lueur(43, 9, 17, 46, '110,150,255', 0.16 + Math.random() * 0.08); }
-  if (P.act === 'lit' && P.pose === 'walk' && (h >= 21 || h < 7)) { lueur(137, 51, 12, 30, '255,220,140', 0.3); }
+  if (tvOn) { lueurK('salon', 43, 9, 17, 46, '110,150,255', 0.16 + Math.random() * 0.08); }
+  if (P.act === 'lit' && P.pose === 'walk' && (h >= 21 || h < 7)) { lueurK('chambre1', 137, 51, 12, 30, '255,220,140', 0.3); }
   cx.globalCompositeOperation = 'source-over';
   camera();
 
@@ -651,10 +369,31 @@ function camera() {
   else { l = iw / 2 - persoX * echelle; l = Math.max(iw - W * echelle, Math.min(0, l)); }
   cv.style.left = Math.round(l) + 'px';
 }
+
+
 window.addEventListener('resize', ajuster);
 ajuster();
 tick();
 setInterval(tick, 1000 / FPS);
+}
+
+/* plan : brouillon local de l'editeur (?local=1), sinon plan.json, sinon plan par defaut */
+var params0 = {};
+location.search.replace(/[?&]([^=&]+)=([^&]*)/g, function (m, k, v) { params0[k] = decodeURIComponent(v); });
+var local = null;
+if (params0.local) { try { local = JSON.parse(localStorage.getItem('appart-plan')); } catch (e) { local = null; } }
+if (local && local.pieces) { demarrer(local); }
+else {
+  var x = new XMLHttpRequest();
+  x.open('GET', 'plan.json?t=' + Date.now(), true);
+  x.onreadystatechange = function () {
+    if (x.readyState !== 4) { return; }
+    var plan = null;
+    if (x.status >= 200 && x.status < 300) { try { plan = JSON.parse(x.responseText); } catch (e) { plan = null; } }
+    demarrer(plan && plan.pieces ? plan : Moteur.PLAN_DEFAUT);
+  };
+  x.send();
+}
 })();
 </script>
 </body>

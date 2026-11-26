@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Éditeur du plan</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #17151c; color: #e9e6ef; font: 14px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid #2c2935; }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0 14px 0 0; }
+  button, select, input { font: inherit; color: inherit; }
+  button { background: #2a2733; border: 1px solid #3c3847; border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  button:hover { background: #343040; }
+  button.on { background: #e0a040; color: #1b1406; border-color: #e0a040; }
+  button.prim { background: #3f7be0; border-color: #3f7be0; color: #fff; }
+  .sep { width: 1px; height: 24px; background: #3c3847; margin: 0 4px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; padding: 16px 18px; }
+  .zone { background: #1e1b25; border: 1px solid #2c2935; border-radius: 12px; padding: 12px; min-width: 0; }
+  .zone h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8d879b; margin: 0 0 8px; font-weight: 600; }
+  #plan { display: block; width: 100%; cursor: default; background: #121016; border-radius: 8px; touch-action: none; }
+  #apercu { display: block; width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; background: #16141b; border-radius: 8px; }
+  label { display: block; margin: 8px 0 3px; color: #a7a1b5; font-size: 12px; }
+  input[type=text], input[type=number], select { width: 100%; background: #14121a; border: 1px solid #3c3847; border-radius: 7px; padding: 6px 8px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ouv { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #2c2935; font-size: 13px; }
+  .ouv button { padding: 2px 8px; font-size: 12px; }
+  .aide { color: #8d879b; font-size: 12px; margin-top: 8px; }
+  #msg { color: #7fd39a; font-size: 13px; margin-left: auto; }
+  textarea { width: 100%; height: 120px; background: #14121a; color: #cfc9dc; border: 1px solid #3c3847; border-radius: 7px; font: 11px/1.3 Consolas, monospace; margin-top: 8px; display: none; }
+  .vide { color: #8d879b; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Éditeur du plan</h1>
+  <button data-outil="select" class="on">Sélection</button>
+  <button data-outil="porte">+ Porte</button>
+  <button data-outil="fenetre">+ Fenêtre</button>
+  <button data-outil="gomme">Gomme</button>
+  <span class="sep"></span>
+  <button id="ajout">+ Pièce</button>
+  <button id="annuler">Annuler</button>
+  <button id="reinit">Réinitialiser</button>
+  <span class="sep"></span>
+  <button id="grand">Voir en grand</button>
+  <button id="copier" class="prim">Copier le plan</button>
+  <span id="msg"></span>
+</header>
+<main>
+  <div>
+    <div class="zone"><h2>Plan vu de dessus · 1 case = 1 m</h2><canvas id="plan"></canvas>
+      <div class="aide" id="aideOutil">Clique une pièce pour la choisir. Glisse-la pour la déplacer, ou tire un de ses bords pour l'agrandir.</div>
+    </div>
+    <div class="zone" style="margin-top:16px"><h2>Aperçu pixel art (se met à jour tout seul)</h2><canvas id="apercu"></canvas></div>
+  </div>
+  <div class="zone" id="panneau"></div>
+</main>
+<script src="moteur.js"></script>
+<script>
+(function () {
+'use strict';
+var plan, histo = [], sel = -1, outil = 'select';
+var cvP = document.getElementById('plan'), cP = cvP.getContext('2d');
+var cvA = document.getElementById('apercu'), cA = cvA.getContext('2d');
+var panneau = document.getElementById('panneau');
+var S = 5, MARGE = 6;                     // pixels par voxel sur le plan
+var AIDES = {
+  select: "Clique une pièce pour la choisir. Glisse-la pour la déplacer, ou tire un de ses bords pour l'agrandir.",
+  porte: "Clique sur un mur de la pièce choisie pour y percer une porte.",
+  fenetre: "Clique sur un mur de la pièce choisie pour y ajouter une fenêtre. Elles se voient sur les murs du fond.",
+  gomme: "Clique sur une porte ou une fenêtre pour l'enlever."
+};
+var COTES = { fond: 'mur du fond', avant: 'mur de devant', gauche: 'mur de gauche', droite: 'mur de droite' };
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function msg(t) { var m = document.getElementById('msg'); m.textContent = t; clearTimeout(msg.t); msg.t = setTimeout(function () { m.textContent = ''; }, 2500); }
+function memo() { histo.push(JSON.stringify(plan)); if (histo.length > 60) { histo.shift(); } }
+function sauver() { try { localStorage.setItem('appart-plan', JSON.stringify(plan)); } catch (e) {} }
+function m2(v) { return (v / 10).toFixed(1).replace('.', ','); }
+
+/* ---------- chargement ---------- */
+function charger(cb) {
+  var brouillon = null;
+  try { brouillon = JSON.parse(localStorage.getItem('appart-plan')); } catch (e) {}
+  if (brouillon && brouillon.pieces) { cb(brouillon); return; }
+  chargerOriginal(cb);
+}
+function chargerOriginal(cb) {
+  var x = new XMLHttpRequest();
+  x.open('GET', 'plan.json?t=' + Date.now(), true);
+  x.onreadystatechange = function () {
+    if (x.readyState !== 4) { return; }
+    var p = null;
+    if (x.status >= 200 && x.status < 300) { try { p = JSON.parse(x.responseText); } catch (e) {} }
+    cb(p && p.pieces ? p : clone(Moteur.PLAN_DEFAUT));
+  };
+  x.send();
+}
+
+/* ---------- plan 2D ---------- */
+function bornes() {
+  var mx = 60, my = 30, i;
+  for (i = 0; i < plan.pieces.length; i++) { mx = Math.max(mx, plan.pieces[i].x1); my = Math.max(my, plan.pieces[i].y1); }
+  return { w: mx + 30, h: my + 20 };
+}
+function dessinerPlan() {
+  var b = bornes(), W = (b.w + MARGE) * S, H = (b.h + MARGE) * S, i, j, p;
+  cvP.width = W; cvP.height = H;
+  cP.fillStyle = '#121016'; cP.fillRect(0, 0, W, H);
+  cP.strokeStyle = '#1f1c26'; cP.lineWidth = 1;
+  for (i = 0; i <= b.w; i += 10) { cP.beginPath(); cP.moveTo(X(i) + 0.5, 0); cP.lineTo(X(i) + 0.5, H); cP.stroke(); }
+  for (i = 0; i <= b.h; i += 10) { cP.beginPath(); cP.moveTo(0, Y(i) + 0.5); cP.lineTo(W, Y(i) + 0.5); cP.stroke(); }
+  for (i = 0; i < plan.pieces.length; i++) {
+    p = plan.pieces[i];
+    cP.fillStyle = p.ferme ? '#3a3742' : (p.niveau > 1 ? '#6b4f36' : (p.sol === 'bois' ? '#57412d' : '#4a4852'));
+    cP.fillRect(X(p.x0), Y(p.y0), (p.x1 - p.x0) * S, (p.y1 - p.y0) * S);
+    if (p.ferme) {
+      cP.strokeStyle = 'rgba(255,255,255,0.07)';
+      for (j = -(p.y1 - p.y0); j < p.x1 - p.x0; j += 4) { cP.beginPath(); cP.moveTo(X(p.x0 + Math.max(0, j)), Y(p.y0 + Math.max(0, -j))); cP.lineTo(X(p.x0 + Math.min(p.x1 - p.x0, j + p.y1 - p.y0)), Y(p.y0 + Math.min(p.y1 - p.y0, p.x1 - p.x0 - j))); cP.stroke(); }
+    }
+  }
+  for (i = 0; i < plan.pieces.length; i++) {
+    p = plan.pieces[i];
+    cP.strokeStyle = '#e8e4ee'; cP.lineWidth = 3;
+    cP.strokeRect(X(p.x0), Y(p.y0), (p.x1 - p.x0) * S, (p.y1 - p.y0) * S);
+  }
+  for (i = 0; i < plan.pieces.length; i++) {
+    p = plan.pieces[i];
+    var ouv = p.ouvertures || [];
+    for (j = 0; j < ouv.length; j++) {
+      var s = segment(p, ouv[j]);
+      cP.strokeStyle = ouv[j].type === 'fenetre' ? '#5fb6ff' : '#121016'; cP.lineWidth = ouv[j].type === 'fenetre' ? 5 : 5;
+      cP.beginPath(); cP.moveTo(X(s[0]), Y(s[1])); cP.lineTo(X(s[2]), Y(s[3])); cP.stroke();
+      if (ouv[j].type !== 'fenetre') { cP.strokeStyle = '#e0a040'; cP.lineWidth = 1.5; cP.beginPath(); cP.moveTo(X(s[0]), Y(s[1])); cP.lineTo(X(s[2]), Y(s[3])); cP.stroke(); }
+    }
+  }
+  for (i = 0; i < plan.pieces.length; i++) {
+    p = plan.pieces[i];
+    cP.fillStyle = '#f2eef7'; cP.font = '600 12px -apple-system, Segoe UI, sans-serif'; cP.textAlign = 'center';
+    var cx = X((p.x0 + p.x1) / 2), cy = Y((p.y0 + p.y1) / 2);
+    cP.fillText(p.nom || p.id, cx, cy - 2);
+    cP.fillStyle = '#b9b2c7'; cP.font = '11px -apple-system, Segoe UI, sans-serif';
+    cP.fillText(m2(p.x1 - p.x0) + ' × ' + m2(p.y1 - p.y0) + ' m' + (p.niveau > 1 ? ' · surélevé' : ''), cx, cy + 13);
+  }
+  if (sel >= 0 && plan.pieces[sel]) {
+    p = plan.pieces[sel];
+    cP.strokeStyle = '#e0a040'; cP.lineWidth = 2; cP.setLineDash([6, 4]);
+    cP.strokeRect(X(p.x0) - 3, Y(p.y0) - 3, (p.x1 - p.x0) * S + 6, (p.y1 - p.y0) * S + 6);
+    cP.setLineDash([]);
+  }
+  cP.fillStyle = '#8d879b'; cP.font = '11px -apple-system, Segoe UI, sans-serif'; cP.textAlign = 'left';
+  cP.fillText('Fond (murs hauts) en haut et à gauche · 1 case = 1 m', 8, H - 8);
+}
+function X(v) { return (v + MARGE / 2) * S; }
+function Y(v) { return (v + MARGE / 2) * S; }
+function versGrille(ev) {
+  var r = cvP.getBoundingClientRect(), k = cvP.width / r.width;
+  return { x: ((ev.clientX - r.left) * k) / S - MARGE / 2, y: ((ev.clientY - r.top) * k) / S - MARGE / 2 };
+}
+function segment(p, o) {
+  var a = o.debut, b = o.debut + o.long;
+  if (o.cote === 'fond') { return [p.x0 + a, p.y0, p.x0 + b, p.y0]; }
+  if (o.cote === 'avant') { return [p.x0 + a, p.y1, p.x0 + b, p.y1]; }
+  if (o.cote === 'gauche') { return [p.x0, p.y0 + a, p.x0, p.y0 + b]; }
+  return [p.x1, p.y0 + a, p.x1, p.y0 + b];
+}
+function pieceSous(g) {
+  var i, p;
+  for (i = plan.pieces.length - 1; i >= 0; i--) { p = plan.pieces[i]; if (g.x >= p.x0 && g.x <= p.x1 && g.y >= p.y0 && g.y <= p.y1) { return i; } }
+  return -1;
+}
+function coteProche(p, g, tol) {
+  var d = [['fond', Math.abs(g.y - p.y0), g.x >= p.x0 && g.x <= p.x1], ['avant', Math.abs(g.y - p.y1), g.x >= p.x0 && g.x <= p.x1],
+           ['gauche', Math.abs(g.x - p.x0), g.y >= p.y0 && g.y <= p.y1], ['droite', Math.abs(g.x - p.x1), g.y >= p.y0 && g.y <= p.y1]];
+  var best = null, i;
+  for (i = 0; i < 4; i++) { if (d[i][2] && d[i][1] <= tol && (!best || d[i][1] < best[1])) { best = d[i]; } }
+  return best ? best[0] : null;
+}
+
+/* ---------- souris ---------- */
+var glisse = null;
+cvP.addEventListener('pointerdown', function (ev) {
+  var g = versGrille(ev), i, p;
+  if (outil === 'gomme') {
+    for (i = 0; i < plan.pieces.length; i++) {
+      p = plan.pieces[i];
+      var ouv = p.ouvertures || [], j;
+      for (j = 0; j < ouv.length; j++) {
+        var s = segment(p, ouv[j]);
+        if (g.x >= Math.min(s[0], s[2]) - 1.5 && g.x <= Math.max(s[0], s[2]) + 1.5 && g.y >= Math.min(s[1], s[3]) - 1.5 && g.y <= Math.max(s[1], s[3]) + 1.5) {
+          memo(); ouv.splice(j, 1); change(); msg('Ouverture enlevée'); return;
+        }
+      }
+    }
+    return;
+  }
+  if (outil === 'porte' || outil === 'fenetre') {
+    var cible = sel >= 0 ? plan.pieces[sel] : null, cote = cible ? coteProche(cible, g, 2.5) : null;
+    if (!cible || !cote) {
+      i = pieceSous(g);
+      if (i >= 0) { cible = plan.pieces[i]; sel = i; cote = coteProche(cible, g, 2.5); }
+    }
+    if (!cible || !cote) { msg('Clique plus près d’un mur'); return; }
+    var lgCote = (cote === 'fond' || cote === 'avant') ? cible.x1 - cible.x0 : cible.y1 - cible.y0;
+    var pos = (cote === 'fond' || cote === 'avant') ? g.x - cible.x0 : g.y - cible.y0;
+    var lg = outil === 'porte' ? 8 : 20;
+    lg = Math.min(lg, lgCote - 2);
+    var deb = Math.round(Math.max(1, Math.min(lgCote - lg, pos - lg / 2)));
+    memo();
+    (cible.ouvertures = cible.ouvertures || []).push({ type: outil, cote: cote, debut: deb, long: lg });
+    change(); msg((outil === 'porte' ? 'Porte' : 'Fenêtre') + ' ajoutée sur le ' + COTES[cote]);
+    return;
+  }
+  // selection / deplacement / redimension
+  var bord = null;
+  if (sel >= 0) {
+    p = plan.pieces[sel];
+    var tol = 1.6, bx = null, by = null;
+    if (g.y >= p.y0 - tol && g.y <= p.y1 + tol) { if (Math.abs(g.x - p.x0) < tol) { bx = 'x0'; } else if (Math.abs(g.x - p.x1) < tol) { bx = 'x1'; } }
+    if (g.x >= p.x0 - tol && g.x <= p.x1 + tol) { if (Math.abs(g.y - p.y0) < tol) { by = 'y0'; } else if (Math.abs(g.y - p.y1) < tol) { by = 'y1'; } }
+    if (bx || by) { bord = { x: bx, y: by }; }
+  }
+  if (!bord) { i = pieceSous(g); sel = i; afficherPanneau(); dessinerPlan(); }
+  if (sel < 0) { return; }
+  memo();
+  glisse = { g0: g, p0: clone(plan.pieces[sel]), bord: bord, bouge: false };
+  cvP.setPointerCapture(ev.pointerId);
+});
+cvP.addEventListener('pointermove', function (ev) {
+  var g = versGrille(ev);
+  if (!glisse) {
+    var c = 'default';
+    if (outil === 'select' && sel >= 0) {
+      var p = plan.pieces[sel], t = 1.6;
+      var hx = g.y >= p.y0 - t && g.y <= p.y1 + t && (Math.abs(g.x - p.x0) < t || Math.abs(g.x - p.x1) < t);
+      var hy = g.x >= p.x0 - t && g.x <= p.x1 + t && (Math.abs(g.y - p.y0) < t || Math.abs(g.y - p.y1) < t);
+      c = hx && hy ? 'nwse-resize' : (hx ? 'ew-resize' : (hy ? 'ns-resize' : (pieceSous(g) === sel ? 'move' : 'default')));
+    } else if (outil !== 'select') { c = 'crosshair'; }
+    cvP.style.cursor = c;
+    return;
+  }
+  var dx = Math.round(g.x - glisse.g0.x), dy = Math.round(g.y - glisse.g0.y), q = plan.pieces[sel], o = glisse.p0;
+  if (!dx && !dy && !glisse.bouge) { return; }
+  glisse.bouge = true;
+  if (glisse.bord) {
+    if (glisse.bord.x === 'x0') { q.x0 = Math.max(0, Math.min(o.x1 - 6, o.x0 + dx)); }
+    if (glisse.bord.x === 'x1') { q.x1 = Math.max(o.x0 + 6, o.x1 + dx); }
+    if (glisse.bord.y === 'y0') { q.y0 = Math.max(0, Math.min(o.y1 - 6, o.y0 + dy)); }
+    if (glisse.bord.y === 'y1') { q.y1 = Math.max(o.y0 + 6, o.y1 + dy); }
+  } else {
+    var w = o.x1 - o.x0, h = o.y1 - o.y0;
+    q.x0 = Math.max(0, o.x0 + dx); q.y0 = Math.max(0, o.y0 + dy); q.x1 = q.x0 + w; q.y1 = q.y0 + h;
+  }
+  dessinerPlan(); afficherPanneau(true); apercuBientot();
+});
+cvP.addEventListener('pointerup', function () {
+  if (glisse && !glisse.bouge) { histo.pop(); }
+  if (glisse && glisse.bouge) { change(); }
+  glisse = null;
+});
+
+/* ---------- panneau ---------- */
+function afficherPanneau(seulementChiffres) {
+  if (sel < 0 || !plan.pieces[sel]) {
+    panneau.innerHTML = '<h2>Pièce</h2><p class="vide">Clique une pièce sur le plan pour la modifier.</p>' +
+      '<h2 style="margin-top:18px">Mode d’emploi</h2><p class="aide">1. Modifie les pièces, les portes et les fenêtres.<br>2. Clique « Voir en grand » pour tester sur cet ordinateur.<br>3. Clique « Copier le plan » et colle-le à Claude dans le chat : il le publie pour l’iPad.</p><textarea id="sortie" readonly></textarea>';
+    return;
+  }
+  var p = plan.pieces[sel];
+  if (seulementChiffres && document.getElementById('f_x0')) {
+    document.getElementById('f_x0').value = m2(p.x0); document.getElementById('f_y0').value = m2(p.y0);
+    document.getElementById('f_w').value = m2(p.x1 - p.x0); document.getElementById('f_h').value = m2(p.y1 - p.y0);
+    return;
+  }
+  var kits = ['', 'salon', 'cuisine', 'entree', 'chambre1'], nomsKits = { '': 'aucun', salon: 'salon', cuisine: 'cuisine', entree: 'entrée + escalier', chambre1: 'chambre 1' };
+  var h = '<h2>Pièce choisie</h2>' +
+    '<label>Nom</label><input type="text" id="f_nom" value="' + esc(p.nom || '') + '">' +
+    '<div class="row"><div><label>Position X (m)</label><input type="number" step="0.1" id="f_x0" value="' + m2(p.x0).replace(',', '.') + '"></div>' +
+    '<div><label>Position Y (m)</label><input type="number" step="0.1" id="f_y0" value="' + m2(p.y0).replace(',', '.') + '"></div></div>' +
+    '<div class="row"><div><label>Largeur (m)</label><input type="number" step="0.1" min="0.6" id="f_w" value="' + m2(p.x1 - p.x0).replace(',', '.') + '"></div>' +
+    '<div><label>Profondeur (m)</label><input type="number" step="0.1" min="0.6" id="f_h" value="' + m2(p.y1 - p.y0).replace(',', '.') + '"></div></div>' +
+    '<label>Hauteur du sol</label><select id="f_niv"><option value="1"' + (p.niveau === 1 ? ' selected' : '') + '>Niveau normal</option><option value="6"' + (p.niveau > 1 ? ' selected' : '') + '>Surélevé (5 marches)</option></select>' +
+    '<label>Sol</label><select id="f_sol">' + ['bois', 'gris', 'clair', 'carrelage'].map(function (s) { return '<option' + (p.sol === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
+    '<label>Meubles de</label><select id="f_kit">' + kits.map(function (k) { return '<option value="' + k + '"' + ((p.kit || '') === k ? ' selected' : '') + '>' + nomsKits[k] + '</option>'; }).join('') + '</select>' +
+    '<label><input type="checkbox" id="f_ferme"' + (p.ferme ? ' checked' : '') + '> Pièce fermée (on ne voit pas dedans)</label>' +
+    '<h2 style="margin-top:16px">Portes et fenêtres</h2>';
+  var ouv = p.ouvertures || [], i;
+  if (!ouv.length) { h += '<p class="vide">Aucune. Utilise « + Porte » ou « + Fenêtre ».</p>'; }
+  for (i = 0; i < ouv.length; i++) {
+    h += '<div class="ouv"><span>' + (ouv[i].type === 'fenetre' ? 'Fenêtre' : 'Porte') + ' · ' + COTES[ouv[i].cote] + ' · ' + m2(ouv[i].long) + ' m</span>' +
+      '<span><button data-l="' + i + '" data-d="-2">−</button> <button data-l="' + i + '" data-d="2">+</button> <button data-x="' + i + '">Enlever</button></span></div>';
+  }
+  h += '<div style="margin-top:14px"><button id="suppr">Supprimer la pièce</button></div>';
+  panneau.innerHTML = h;
+  function lier(id, fn) { var e = document.getElementById(id); e.addEventListener('change', function () { memo(); fn(e); change(); }); }
+  lier('f_nom', function (e) { p.nom = e.value; });
+  lier('f_x0', function (e) { var w = p.x1 - p.x0; p.x0 = Math.max(0, Math.round(parseFloat(e.value) * 10) || 0); p.x1 = p.x0 + w; });
+  lier('f_y0', function (e) { var hh = p.y1 - p.y0; p.y0 = Math.max(0, Math.round(parseFloat(e.value) * 10) || 0); p.y1 = p.y0 + hh; });
+  lier('f_w', function (e) { p.x1 = p.x0 + Math.max(6, Math.round(parseFloat(e.value) * 10) || 6); });
+  lier('f_h', function (e) { p.y1 = p.y0 + Math.max(6, Math.round(parseFloat(e.value) * 10) || 6); });
+  lier('f_niv', function (e) { p.niveau = parseInt(e.value, 10); });
+  lier('f_sol', function (e) { p.sol = e.value; });
+  lier('f_kit', function (e) { if (e.value) { p.kit = e.value; } else { delete p.kit; } });
+  lier('f_ferme', function (e) { p.ferme = e.checked; });
+  var bt = panneau.querySelectorAll('button[data-x]'), bl = panneau.querySelectorAll('button[data-l]');
+  for (i = 0; i < bt.length; i++) { bt[i].onclick = function () { memo(); ouv.splice(parseInt(this.getAttribute('data-x'), 10), 1); change(); }; }
+  for (i = 0; i < bl.length; i++) {
+    bl[i].onclick = function () {
+      var o = ouv[parseInt(this.getAttribute('data-l'), 10)], d = parseInt(this.getAttribute('data-d'), 10);
+      memo(); o.long = Math.max(2, o.long + d); o.debut = Math.max(1, o.debut - d / 2); change();
+    };
+  }
+  document.getElementById('suppr').onclick = function () { memo(); plan.pieces.splice(sel, 1); sel = -1; change(); };
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+/* ---------- apercu iso ---------- */
+var tAp = null;
+function apercuBientot() { clearTimeout(tAp); tAp = setTimeout(apercu, 180); }
+function apercu() {
+  var m;
+  try { m = Moteur.construire(plan); } catch (e) { msg('Aperçu impossible : ' + e.message); return; }
+  cvA.width = m.W; cvA.height = m.H;
+  var im = cA.createImageData(m.W, m.H);
+  new Uint32Array(im.data.buffer).set(m.base);
+  var j, sky = Moteur.pack(168, 203, 228);
+  var f = new Uint32Array(im.data.buffer);
+  for (j = 0; j < m.winPx.length; j++) { f[m.winPx[j]] = sky; }
+  cA.putImageData(im, 0, 0);
+}
+
+/* ---------- actions ---------- */
+function change() { sauver(); dessinerPlan(); afficherPanneau(); apercuBientot(); }
+var bo = document.querySelectorAll('button[data-outil]'), k;
+for (k = 0; k < bo.length; k++) {
+  bo[k].onclick = function () {
+    outil = this.getAttribute('data-outil');
+    for (var n = 0; n < bo.length; n++) { bo[n].className = bo[n] === this ? 'on' : ''; }
+    document.getElementById('aideOutil').textContent = AIDES[outil];
+  };
+}
+document.getElementById('ajout').onclick = function () {
+  memo();
+  var b = bornes();
+  plan.pieces.push({ id: 'p' + Date.now(), nom: 'Nouvelle pièce', x0: b.w - 26, y0: 0, x1: b.w - 2, y1: 24, niveau: 1, sol: 'bois', ouvertures: [] });
+  sel = plan.pieces.length - 1; change(); msg('Pièce ajoutée à droite');
+};
+document.getElementById('annuler').onclick = function () {
+  if (!histo.length) { msg('Rien à annuler'); return; }
+  plan = JSON.parse(histo.pop()); if (sel >= plan.pieces.length) { sel = -1; } change();
+};
+document.getElementById('reinit').onclick = function () {
+  if (!window.confirm('Revenir au plan publié et perdre tes modifications ?')) { return; }
+  memo(); try { localStorage.removeItem('appart-plan'); } catch (e) {}
+  chargerOriginal(function (p) { plan = p; sel = -1; change(); msg('Plan publié rechargé'); });
+};
+document.getElementById('grand').onclick = function () { sauver(); window.open('index.html?local=1', '_blank'); };
+document.getElementById('copier').onclick = function () {
+  var t = JSON.stringify(plan);
+  var ta = document.getElementById('sortie');
+  function montrer() { if (ta) { ta.style.display = 'block'; ta.value = t; ta.select(); } }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(function () { msg('Plan copié : colle-le à Claude dans le chat'); }, function () { montrer(); msg('Copie le texte ci-dessous'); });
+  } else { montrer(); msg('Copie le texte ci-dessous'); }
+  if (sel >= 0) { sel = -1; afficherPanneau(); dessinerPlan(); setTimeout(function () { var x = document.getElementById('sortie'); if (x) { x.style.display = 'block'; x.value = t; } }, 0); }
+};
+document.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); document.getElementById('annuler').click(); }
+});
+
+charger(function (p) { plan = p; dessinerPlan(); afficherPanneau(); apercu(); });
+})();
+</script>
+</body>
+</html>
